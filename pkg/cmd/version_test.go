@@ -24,6 +24,8 @@ import (
 )
 
 func TestRootCmd_HasVersionCommand(t *testing.T) {
+	t.Parallel()
+
 	rootCmd := NewRootCmd()
 	versionCmd := rootCmd.Commands()
 	found := false

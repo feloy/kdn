@@ -25,6 +25,8 @@ import (
 )
 
 func TestRootCmd_Initialization(t *testing.T) {
+	t.Parallel()
+
 	rootCmd := NewRootCmd()
 	if rootCmd.Use != "kortex-cli" {
 		t.Errorf("Expected Use to be 'kortex-cli', got '%s'", rootCmd.Use)
@@ -66,6 +68,8 @@ func TestExecute_NoArgs(t *testing.T) {
 }
 
 func TestRootCmd_StorageFlag(t *testing.T) {
+	t.Parallel()
+
 	rootCmd := NewRootCmd()
 
 	// Check that the flag exists

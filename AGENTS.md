@@ -164,6 +164,20 @@ All source files must include Apache License 2.0 copyright headers with Red Hat 
 
 Tests follow Go conventions with `*_test.go` files alongside source files. Tests use the standard `testing` package and should cover command initialization, execution, and error cases.
 
+### Parallel Test Execution
+
+**All tests MUST call `t.Parallel()` as the first line of the test function.**
+
+This ensures faster test execution and better resource utilization. Every test function should start with:
+
+```go
+func TestExample(t *testing.T) {
+    t.Parallel()
+
+    // Test code here...
+}
+```
+
 ## GitHub Actions
 
 GitHub Actions workflows are stored in `.github/workflows/`. All workflows must use commit SHA1 hashes instead of version tags for security reasons (to prevent supply chain attacks from tag manipulation).
