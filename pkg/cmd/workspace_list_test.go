@@ -20,7 +20,6 @@ package cmd
 
 import (
 	"bytes"
-	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -226,6 +225,3 @@ func TestWorkspaceListCmd_E2E(t *testing.T) {
 		}
 	})
 }
-
-// Ensure we don't import os without using it
-var _ = os.Stat
