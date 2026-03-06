@@ -195,7 +195,7 @@ Commands should follow a consistent structure for maintainability and testabilit
 
 ### Testing Pattern for Commands
 
-Commands should have two types of tests following the pattern in `pkg/instances/instance_test.go`:
+Commands should have two types of tests following the pattern in `pkg/cmd/init_test.go`:
 
 1. **Unit Tests** - Test the `preRun` method directly:
    - Use `t.Run()` for subtests within a parent test function
@@ -211,7 +211,7 @@ Commands should have two types of tests following the pattern in `pkg/instances/
    - Verify all field values from `manager.List()` or similar
    - Test multiple scenarios (default args, custom args, edge cases)
 
-**Reference:** See `pkg/cmd/init_test.go` for complete examples of both unit and E2E tests.
+**Reference:** See `pkg/cmd/init_test.go` for complete examples of both `preRun` unit tests (in `TestInitCmd_PreRun`) and E2E tests (in `TestInitCmd_E2E`).
 
 ### Working with the Instances Manager
 

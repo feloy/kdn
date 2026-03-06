@@ -38,7 +38,10 @@ type InitCmd struct {
 // preRun validates the parameters and flags
 func (i *InitCmd) preRun(cmd *cobra.Command, args []string) error {
 	// Get storage directory from global flag
-	storageDir, _ := cmd.Flags().GetString("storage")
+	storageDir, err := cmd.Flags().GetString("storage")
+	if err != nil {
+		return fmt.Errorf("failed to read --storage flag: %w", err)
+	}
 
 	// Create manager
 	manager, err := instances.NewManager(storageDir)
