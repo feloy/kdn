@@ -170,6 +170,130 @@ func NewExampleCmd() *cobra.Command {
 rootCmd.AddCommand(NewExampleCmd())
 ```
 
+### Command Implementation Pattern
+
+Commands should follow a consistent structure for maintainability and testability:
+
+1. **Command Struct** - Contains all command state:
+   - Input values from flags/args
+   - Computed/validated values
+   - Dependencies (e.g., manager instances)
+
+2. **preRun Method** - Validates parameters and prepares:
+   - Parse and validate arguments/flags
+   - Access global flags (e.g., `--storage`)
+   - Create dependencies (managers, etc.)
+   - Convert paths to absolute using `filepath.Abs()`
+   - Store validated values in struct fields
+
+3. **run Method** - Executes the command logic:
+   - Use validated values from struct fields
+   - Perform the actual operation
+   - Output results to user
+
+**Reference:** See `pkg/cmd/init.go` for a complete implementation of this pattern.
+
+### Testing Pattern for Commands
+
+Commands should have two types of tests following the pattern in `pkg/instances/instance_test.go`:
+
+1. **Unit Tests** - Test the `preRun` method directly:
+   - Use `t.Run()` for subtests within a parent test function
+   - Test with different argument/flag combinations
+   - Verify struct fields are set correctly
+   - Use `t.TempDir()` for temporary directories (automatic cleanup)
+
+2. **E2E Tests** - Test the full command execution:
+   - Execute via `rootCmd.Execute()`
+   - Use real temp directories with `t.TempDir()`
+   - Verify output messages
+   - Verify persistence (check storage/database)
+   - Verify all field values from `manager.List()` or similar
+   - Test multiple scenarios (default args, custom args, edge cases)
+
+**Reference:** See `pkg/cmd/init_test.go` for complete examples of both unit and E2E tests.
+
+### Working with the Instances Manager
+
+When commands need to interact with workspaces:
+
+```go
+// In preRun - create manager from storage flag
+storageDir, _ := cmd.Flags().GetString("storage")
+manager, err := instances.NewManager(storageDir)
+if err != nil {
+    return fmt.Errorf("failed to create manager: %w", err)
+}
+
+// In run - use manager to add instances
+instance, err := instances.NewInstance(sourceDir, configDir)
+if err != nil {
+    return fmt.Errorf("failed to create instance: %w", err)
+}
+
+addedInstance, err := manager.Add(instance)
+if err != nil {
+    return fmt.Errorf("failed to add instance: %w", err)
+}
+
+// List instances
+instancesList, err := manager.List()
+if err != nil {
+    return fmt.Errorf("failed to list instances: %w", err)
+}
+
+// Get specific instance
+instance, err := manager.Get(id)
+if err != nil {
+    return fmt.Errorf("instance not found: %w", err)
+}
+
+// Delete instance
+err := manager.Delete(id)
+if err != nil {
+    return fmt.Errorf("failed to delete instance: %w", err)
+}
+```
+
+### Cross-Platform Path Handling
+
+**IMPORTANT**: All path operations must be cross-platform compatible (Linux, macOS, Windows).
+
+**Rules:**
+- Always use `filepath.Join()` for path construction (never hardcode "/" or "\\")
+- Convert relative paths to absolute with `filepath.Abs()`
+- Never hardcode paths with `~` - use `os.UserHomeDir()` instead
+- In tests, use `filepath.Join()` for all path assertions
+- Use `t.TempDir()` for temporary directories in tests
+
+**Examples:**
+
+```go
+// GOOD: Cross-platform path construction
+configDir := filepath.Join(sourceDir, ".kortex")
+absPath, err := filepath.Abs(relativePath)
+
+// BAD: Hardcoded separator
+configDir := sourceDir + "/.kortex"  // Don't do this!
+
+// GOOD: User home directory
+homeDir, err := os.UserHomeDir()
+defaultPath := filepath.Join(homeDir, ".kortex-cli")
+
+// BAD: Hardcoded tilde
+defaultPath := "~/.kortex-cli"  // Don't do this!
+
+// GOOD: Test assertions
+expectedPath := filepath.Join(".", "relative", "path")
+if result != expectedPath {
+    t.Errorf("Expected %s, got %s", expectedPath, result)
+}
+
+// GOOD: Temporary directories in tests
+tempDir := t.TempDir()  // Automatic cleanup
+sourcesDir := t.TempDir()
+```
+
 ## Copyright Headers
 
 All source files must include Apache License 2.0 copyright headers with Red Hat copyright. Use the `/copyright-headers` skill to add or update headers automatically. The current year is 2026.
