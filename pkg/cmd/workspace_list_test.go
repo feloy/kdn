@@ -95,9 +95,9 @@ func TestWorkspaceListCmd_E2E(t *testing.T) {
 		}
 
 		instance, err := instances.NewInstance(instances.NewInstanceParams{
-		SourceDir: sourcesDir,
-		ConfigDir: filepath.Join(sourcesDir, ".kortex"),
-	})
+			SourceDir: sourcesDir,
+			ConfigDir: filepath.Join(sourcesDir, ".kortex"),
+		})
 		if err != nil {
 			t.Fatalf("Failed to create instance: %v", err)
 		}
@@ -142,17 +142,17 @@ func TestWorkspaceListCmd_E2E(t *testing.T) {
 		}
 
 		instance1, err := instances.NewInstance(instances.NewInstanceParams{
-		SourceDir: sourcesDir1,
-		ConfigDir: filepath.Join(sourcesDir1, ".kortex"),
-	})
+			SourceDir: sourcesDir1,
+			ConfigDir: filepath.Join(sourcesDir1, ".kortex"),
+		})
 		if err != nil {
 			t.Fatalf("Failed to create instance 1: %v", err)
 		}
 
 		instance2, err := instances.NewInstance(instances.NewInstanceParams{
-		SourceDir: sourcesDir2,
-		ConfigDir: filepath.Join(sourcesDir2, ".kortex"),
-	})
+			SourceDir: sourcesDir2,
+			ConfigDir: filepath.Join(sourcesDir2, ".kortex"),
+		})
 		if err != nil {
 			t.Fatalf("Failed to create instance 2: %v", err)
 		}
@@ -207,9 +207,9 @@ func TestWorkspaceListCmd_E2E(t *testing.T) {
 		}
 
 		instance, err := instances.NewInstance(instances.NewInstanceParams{
-		SourceDir: sourcesDir,
-		ConfigDir: filepath.Join(sourcesDir, ".kortex"),
-	})
+			SourceDir: sourcesDir,
+			ConfigDir: filepath.Join(sourcesDir, ".kortex"),
+		})
 		if err != nil {
 			t.Fatalf("Failed to create instance: %v", err)
 		}
