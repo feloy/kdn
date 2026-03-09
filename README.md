@@ -119,3 +119,82 @@ kortex-cli init /tmp/project --name "project"
 - The workspace ID is a unique identifier generated automatically
 - Workspaces can be listed using the `workspace list` command
 - The default configuration directory (`.kortex`) is created inside the sources directory unless specified otherwise
+
+### `workspace list` - List All Registered Workspaces
+
+Lists all workspaces that have been registered with kortex-cli. Also available as the shorter alias `list`.
+
+#### Usage
+
+```bash
+kortex-cli workspace list [flags]
+kortex-cli list [flags]
+```
+
+#### Flags
+
+- `--output, -o <format>` - Output format (supported: `json`)
+- `--storage <path>` - Storage directory for kortex-cli data (default: `$HOME/.kortex-cli`)
+
+#### Examples
+
+**List all workspaces (human-readable format):**
+```bash
+kortex-cli workspace list
+```
+Output:
+```
+ID: a1b2c3d4e5f6...
+  Name: myproject
+  Sources: /absolute/path/to/myproject
+  Configuration: /absolute/path/to/myproject/.kortex
+
+ID: f6e5d4c3b2a1...
+  Name: another-project
+  Sources: /absolute/path/to/another-project
+  Configuration: /absolute/path/to/another-project/.kortex
+```
+
+**Use the short alias:**
+```bash
+kortex-cli list
+```
+
+**List workspaces in JSON format:**
+```bash
+kortex-cli workspace list --output json
+```
+Output:
+```json
+{
+  "items": [
+    {
+      "id": "a1b2c3d4e5f6...",
+      "name": "myproject",
+      "paths": {
+        "source": "/absolute/path/to/myproject",
+        "configuration": "/absolute/path/to/myproject/.kortex"
+      }
+    },
+    {
+      "id": "f6e5d4c3b2a1...",
+      "name": "another-project",
+      "paths": {
+        "source": "/absolute/path/to/another-project",
+        "configuration": "/absolute/path/to/another-project/.kortex"
+      }
+    }
+  ]
+}
+```
+
+**List with short flag:**
+```bash
+kortex-cli list -o json
+```
+
+#### Notes
+
+- When no workspaces are registered, the command displays "No workspaces registered"
+- The JSON output format is useful for scripting and automation
+- All paths are displayed as absolute paths for consistency
