@@ -321,6 +321,63 @@ func Test<Command>Cmd_Examples(t *testing.T) {
 
 **Reference:** See `pkg/cmd/init.go` and `pkg/cmd/init_test.go` for complete examples.
 
+**Alias Commands:**
+
+Alias commands are shortcuts that delegate to existing commands (e.g., `list` as an alias for `workspace list`). For alias commands:
+
+1. **Inherit the Example field** from the original command
+2. **Adapt the examples** to show the alias syntax instead of the full command
+3. **Do NOT create validation tests** for aliases (they use the same validation as the original command)
+
+Use the `testutil.AdaptExampleForAlias()` function to automatically replace the command name in examples while preserving comments:
+
+```go
+func NewListCmd() *cobra.Command {
+    // Create the workspace list command
+    workspaceListCmd := NewWorkspaceListCmd()
+
+    // Create an alias command that delegates to workspace list
+    cmd := &cobra.Command{
+        Use:     "list",
+        Short:   workspaceListCmd.Short,
+        Long:    workspaceListCmd.Long,
+        Example: testutil.AdaptExampleForAlias(workspaceListCmd.Example, "workspace list", "list"),
+        Args:    workspaceListCmd.Args,
+        PreRunE: workspaceListCmd.PreRunE,
+        RunE:    workspaceListCmd.RunE,
+    }
+
+    // Copy flags from workspace list command
+    cmd.Flags().AddFlagSet(workspaceListCmd.Flags())
+
+    return cmd
+}
+```
+
+The `AdaptExampleForAlias()` function:
+- Replaces the original command with the alias **only in command lines** (lines starting with `kortex-cli`)
+- **Preserves comments unchanged** (lines starting with `#`)
+- Maintains formatting and indentation
+
+**Example transformation:**
+```go
+// Original (from workspace list):
+`# List all workspaces
+kortex-cli workspace list
+
+# List in JSON format
+kortex-cli workspace list --output json`
+
+// After AdaptExampleForAlias(..., "workspace list", "list"):
+`# List all workspaces
+kortex-cli list
+
+# List in JSON format
+kortex-cli list --output json`
+```
+
+**Reference:** See `pkg/cmd/list.go` and `pkg/cmd/remove.go` for complete alias examples.
+
 ### Command Implementation Pattern
 
 Commands should follow a consistent structure for maintainability and testability:

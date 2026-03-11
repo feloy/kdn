@@ -19,6 +19,7 @@
 package cmd
 
 import (
+	"github.com/kortex-hub/kortex-cli/pkg/cmd/testutil"
 	"github.com/spf13/cobra"
 )
 
@@ -31,6 +32,7 @@ func NewListCmd() *cobra.Command {
 		Use:     "list",
 		Short:   workspaceListCmd.Short,
 		Long:    workspaceListCmd.Long,
+		Example: testutil.AdaptExampleForAlias(workspaceListCmd.Example, "workspace list", "list"),
 		Args:    workspaceListCmd.Args,
 		PreRunE: workspaceListCmd.PreRunE,
 		RunE:    workspaceListCmd.RunE,
