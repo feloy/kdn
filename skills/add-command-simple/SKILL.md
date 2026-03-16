@@ -71,7 +71,16 @@ func (c *<command>Cmd) preRun(cmd *cobra.Command, args []string) error {
         return fmt.Errorf("failed to read --storage flag: %w", err)
     }
 
-    // Validate arguments
+    // Validate arguments (if your command accepts args, validate them here)
+    // Example: if the command requires a valid path argument
+    // if len(args) > 0 {
+    //     absPath, err := filepath.Abs(args[0])
+    //     if err != nil {
+    //         return fmt.Errorf("invalid path: %w", err)
+    //     }
+    //     // Additional validation logic...
+    // }
+
     // Convert paths to absolute if needed
     // Create dependencies (manager, etc.)
 
@@ -151,24 +160,31 @@ func Test<Command>Cmd_PreRun(t *testing.T) {
         }
     })
 
-    t.Run("validates arguments", func(t *testing.T) {
-        t.Parallel()
-
-        storageDir := t.TempDir()
-
-        c := &<command>Cmd{}
-        cmd := &cobra.Command{}
-        cmd.Flags().String("storage", storageDir, "test storage flag")
-
-        // Test with invalid args if applicable
-        args := []string{"invalid"}
-        err := c.preRun(cmd, args)
-
-        // Assert on expected errors
-        if err == nil {
-            t.Fatal("Expected error for invalid arguments")
-        }
-    })
+    // NOTE: Only add this test if your command validates arguments in preRun
+    // For commands with Args: cobra.NoArgs, Cobra handles validation,
+    // so this test is not needed. This example shows how to test
+    // custom argument validation if your command accepts arguments.
+    //
+    // t.Run("validates arguments", func(t *testing.T) {
+    //     t.Parallel()
+    //
+    //     storageDir := t.TempDir()
+    //
+    //     c := &<command>Cmd{}
+    //     cmd := &cobra.Command{}
+    //     cmd.Flags().String("storage", storageDir, "test storage flag")
+    //
+    //     // Test with invalid argument
+    //     args := []string{"invalid-value"}
+    //     err := c.preRun(cmd, args)
+    //
+    //     if err == nil {
+    //         t.Fatal("Expected error for invalid argument")
+    //     }
+    //     if !strings.Contains(err.Error(), "expected error message") {
+    //         t.Errorf("Expected specific error message, got: %v", err)
+    //     }
+    // })
 }
 
 func Test<Command>Cmd_E2E(t *testing.T) {
