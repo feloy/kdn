@@ -87,7 +87,13 @@ func (c *<command>Cmd) preRun(cmd *cobra.Command, args []string) error {
     // Validate arguments
     // Convert paths to absolute if needed
     // Create dependencies (manager, etc.)
-    // Store in struct fields
+
+    // Example: Create manager
+    manager, err := instances.NewManager(storageDir)
+    if err != nil {
+        return outputErrorIfJSON(cmd, c.output, fmt.Errorf("failed to create manager: %w", err))
+    }
+    c.manager = manager
 
     return nil
 }
