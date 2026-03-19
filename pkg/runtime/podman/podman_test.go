@@ -81,6 +81,8 @@ func TestPodmanRuntime_Available(t *testing.T) {
 type fakeSystem struct {
 	commandExists  bool
 	checkedCommand string
+	uid            int
+	gid            int
 }
 
 // Ensure fakeSystem implements system.System at compile time.
@@ -89,4 +91,18 @@ var _ system.System = (*fakeSystem)(nil)
 func (f *fakeSystem) CommandExists(name string) bool {
 	f.checkedCommand = name
 	return f.commandExists
+}
+
+func (f *fakeSystem) Getuid() int {
+	if f.uid == 0 {
+		return 1000 // Default UID for tests
+	}
+	return f.uid
+}
+
+func (f *fakeSystem) Getgid() int {
+	if f.gid == 0 {
+		return 1000 // Default GID for tests
+	}
+	return f.gid
 }
