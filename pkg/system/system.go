@@ -16,6 +16,7 @@
 package system
 
 import (
+	"os"
 	"os/exec"
 )
 
@@ -23,6 +24,10 @@ import (
 type System interface {
 	// CommandExists checks if a command is available in the system PATH.
 	CommandExists(name string) bool
+	// Getuid returns the numeric user ID of the caller.
+	Getuid() int
+	// Getgid returns the numeric group ID of the caller.
+	Getgid() int
 }
 
 // systemImpl is the default implementation of System.
@@ -40,4 +45,14 @@ func New() System {
 func (s *systemImpl) CommandExists(name string) bool {
 	_, err := exec.LookPath(name)
 	return err == nil
+}
+
+// Getuid returns the numeric user ID of the caller.
+func (s *systemImpl) Getuid() int {
+	return os.Getuid()
+}
+
+// Getgid returns the numeric group ID of the caller.
+func (s *systemImpl) Getgid() int {
+	return os.Getgid()
 }

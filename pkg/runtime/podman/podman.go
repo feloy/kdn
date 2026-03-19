@@ -25,11 +25,15 @@ import (
 
 // podmanRuntime implements the runtime.Runtime interface for Podman.
 type podmanRuntime struct {
-	system system.System
+	system     system.System
+	storageDir string // Directory for storing runtime-specific data
 }
 
 // Ensure podmanRuntime implements runtime.Runtime at compile time.
 var _ runtime.Runtime = (*podmanRuntime)(nil)
+
+// Ensure podmanRuntime implements runtime.StorageAware at compile time.
+var _ runtime.StorageAware = (*podmanRuntime)(nil)
 
 // New creates a new Podman runtime instance.
 func New() runtime.Runtime {
@@ -49,14 +53,19 @@ func (p *podmanRuntime) Available() bool {
 	return p.system.CommandExists("podman")
 }
 
+// Initialize implements runtime.StorageAware.
+// It sets up the storage directory for persisting runtime-specific data.
+func (p *podmanRuntime) Initialize(storageDir string) error {
+	if storageDir == "" {
+		return fmt.Errorf("storage directory cannot be empty")
+	}
+	p.storageDir = storageDir
+	return nil
+}
+
 // Type returns the runtime type identifier.
 func (p *podmanRuntime) Type() string {
 	return "podman"
-}
-
-// Create creates a new Podman runtime instance.
-func (p *podmanRuntime) Create(ctx context.Context, params runtime.CreateParams) (runtime.RuntimeInfo, error) {
-	return runtime.RuntimeInfo{}, fmt.Errorf("not implemented")
 }
 
 // Start starts a Podman runtime instance.
