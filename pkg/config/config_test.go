@@ -868,12 +868,16 @@ func TestConfig_Load(t *testing.T) {
 			t.Fatalf("os.MkdirAll() failed: %v", err)
 		}
 
+		// Create a platform-appropriate absolute path
+		// Use tempDir which is already an absolute path
+		absolutePath := tempDir
+
 		// Write workspace.json with absolute dependency path
-		workspaceJSON := `{
+		workspaceJSON := fmt.Sprintf(`{
   "mounts": {
-    "dependencies": ["/absolute/path"]
+    "dependencies": ["%s"]
   }
-}`
+}`, filepath.ToSlash(absolutePath))
 		workspacePath := filepath.Join(configDir, WorkspaceConfigFile)
 		err = os.WriteFile(workspacePath, []byte(workspaceJSON), 0644)
 		if err != nil {
@@ -946,12 +950,16 @@ func TestConfig_Load(t *testing.T) {
 			t.Fatalf("os.MkdirAll() failed: %v", err)
 		}
 
+		// Create a platform-appropriate absolute path
+		// Use tempDir which is already an absolute path
+		absolutePath := tempDir
+
 		// Write workspace.json with absolute config path
-		workspaceJSON := `{
+		workspaceJSON := fmt.Sprintf(`{
   "mounts": {
-    "configs": ["/absolute/path"]
+    "configs": ["%s"]
   }
-}`
+}`, filepath.ToSlash(absolutePath))
 		workspacePath := filepath.Join(configDir, WorkspaceConfigFile)
 		err = os.WriteFile(workspacePath, []byte(workspaceJSON), 0644)
 		if err != nil {
