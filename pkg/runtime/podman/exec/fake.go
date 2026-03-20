@@ -16,8 +16,6 @@ package exec
 
 import (
 	"context"
-	"fmt"
-	"strings"
 )
 
 // FakeExecutor is a fake implementation of Executor for testing.
@@ -88,11 +86,6 @@ func (f *FakeExecutor) AssertOutputCalledWith(t interface {
 	t.Errorf("Expected Output to be called with %v, but it was called with: %v", expectedArgs, f.OutputCalls)
 }
 
-// CommandString returns a string representation of a command for debugging.
-func CommandString(args ...string) string {
-	return "podman " + strings.Join(args, " ")
-}
-
 // argsEqual compares two slices of strings for equality.
 func argsEqual(a, b []string) bool {
 	if len(a) != len(b) {
@@ -104,21 +97,4 @@ func argsEqual(a, b []string) bool {
 		}
 	}
 	return true
-}
-
-// NewFakeWithOutputs creates a FakeExecutor that returns predefined outputs based on command arguments.
-// The outputs map uses command strings (as returned by CommandString) as keys.
-func NewFakeWithOutputs(outputs map[string]struct {
-	Output []byte
-	Err    error
-}) *FakeExecutor {
-	fake := NewFake()
-	fake.OutputFunc = func(ctx context.Context, args ...string) ([]byte, error) {
-		key := CommandString(args...)
-		if result, ok := outputs[key]; ok {
-			return result.Output, result.Err
-		}
-		return nil, fmt.Errorf("unexpected command: %s", key)
-	}
-	return fake
 }
