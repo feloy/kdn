@@ -104,7 +104,8 @@ RUN dnf install -y which procps-ng wget2 @development-tools jq gh golang golangc
 
 ARG UID=1000
 ARG GID=1000
-RUN groupadd -f -g "${GID}" claude && useradd -u "${UID}" -g "${GID}" -m claude
+RUN GROUPNAME=$(grep $GID /etc/group | cut -d: -f1); [ -n "$GROUPNAME" ] && groupdel $GROUPNAME || true
+RUN groupadd -g "${GID}" claude && useradd -u "${UID}" -g "${GID}" -m claude
 COPY sudoers /etc/sudoers.d/claude
 USER claude:claude
 
