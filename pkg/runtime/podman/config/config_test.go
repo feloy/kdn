@@ -399,17 +399,17 @@ func TestLoadAgent(t *testing.T) {
 
 		// Test various invalid agent names
 		invalidNames := []string{
-			"../etc/passwd",     // Path traversal
-			"agent-name",        // Hyphen not allowed
-			"agent.name",        // Dot not allowed
-			"agent/name",        // Slash not allowed
-			"agent\\name",       // Backslash not allowed
-			"agent name",        // Space not allowed
-			"agent@name",        // Special char not allowed
-			".",                 // Current directory
-			"..",                // Parent directory
-			"agent-1",           // Hyphen not allowed
-			"my-agent",          // Hyphen not allowed
+			"../etc/passwd", // Path traversal
+			"agent-name",    // Hyphen not allowed
+			"agent.name",    // Dot not allowed
+			"agent/name",    // Slash not allowed
+			"agent\\name",   // Backslash not allowed
+			"agent name",    // Space not allowed
+			"agent@name",    // Special char not allowed
+			".",             // Current directory
+			"..",            // Parent directory
+			"agent-1",       // Hyphen not allowed
+			"my-agent",      // Hyphen not allowed
 		}
 
 		for _, name := range invalidNames {

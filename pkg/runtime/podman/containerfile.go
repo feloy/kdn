@@ -60,7 +60,7 @@ func generateContainerfile(imageConfig *config.ImageConfig, agentConfig *config.
 	if agentConfig == nil {
 		return ""
 	}
-		
+
 	var lines []string
 
 	// FROM line with base image
