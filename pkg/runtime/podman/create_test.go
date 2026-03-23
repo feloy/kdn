@@ -22,6 +22,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	workspace "github.com/kortex-hub/kortex-cli-api/workspace-configuration/go"
 	"github.com/kortex-hub/kortex-cli/pkg/runtime"
@@ -990,16 +991,9 @@ func TestCreate_CleansUpInstanceDirectory(t *testing.T) {
 		}
 
 		// After Create, verify the instance directory was cleaned up
+		// On Windows, file locks may delay cleanup, so retry with a timeout
 		instanceDir := filepath.Join(instancesDir, "test-workspace")
-		if _, err := os.Stat(instanceDir); !os.IsNotExist(err) {
-			t.Errorf("Expected instance directory to be removed, but it still exists: %s", instanceDir)
-
-			// List contents for debugging
-			if err == nil {
-				entries, _ := os.ReadDir(instanceDir)
-				t.Logf("Instance directory contents: %v", entries)
-			}
-		}
+		assertDirectoryRemoved(t, instanceDir)
 	})
 
 	t.Run("removes instance directory even on build failure", func(t *testing.T) {
@@ -1036,16 +1030,9 @@ func TestCreate_CleansUpInstanceDirectory(t *testing.T) {
 		}
 
 		// Even after failure, verify the instance directory was cleaned up
+		// On Windows, file locks may delay cleanup, so retry with a timeout
 		instanceDir := filepath.Join(instancesDir, "test-workspace")
-		if _, err := os.Stat(instanceDir); !os.IsNotExist(err) {
-			t.Errorf("Expected instance directory to be removed after failure, but it still exists: %s", instanceDir)
-
-			// List contents for debugging
-			if err == nil {
-				entries, _ := os.ReadDir(instanceDir)
-				t.Logf("Instance directory contents: %v", entries)
-			}
-		}
+		assertDirectoryRemoved(t, instanceDir)
 	})
 }
 
@@ -1065,4 +1052,37 @@ func (f *fakeExecutor) Output(ctx context.Context, args ...string) ([]byte, erro
 		return nil, f.outputErr
 	}
 	return f.output, nil
+}
+
+// assertDirectoryRemoved checks that a directory has been removed.
+// On Windows, file locks may delay cleanup, so this retries with a timeout.
+func assertDirectoryRemoved(t *testing.T, dir string) {
+	t.Helper()
+
+	// Retry for up to 1 second with 50ms intervals (Windows file lock workaround)
+	maxAttempts := 20
+	interval := 50 * time.Millisecond
+
+	for attempt := 0; attempt < maxAttempts; attempt++ {
+		_, err := os.Stat(dir)
+		if os.IsNotExist(err) {
+			// Directory successfully removed
+			return
+		}
+
+		if attempt < maxAttempts-1 {
+			time.Sleep(interval)
+		}
+	}
+
+	// Final check after all retries
+	if _, err := os.Stat(dir); !os.IsNotExist(err) {
+		t.Errorf("Expected instance directory to be removed, but it still exists: %s", dir)
+
+		// List contents for debugging
+		if err == nil {
+			entries, _ := os.ReadDir(dir)
+			t.Logf("Instance directory contents: %v", entries)
+		}
+	}
 }

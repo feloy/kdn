@@ -16,7 +16,7 @@ package config
 
 import (
 	"fmt"
-	"path/filepath"
+	"strings"
 )
 
 // validateImageConfig validates the image configuration.
@@ -32,9 +32,11 @@ func validateImageConfig(cfg *ImageConfig) error {
 
 	// Packages can be empty (valid use case)
 
-	// Sudo binaries must be absolute paths
+	// Sudo binaries must be absolute paths (Unix-style, for container environment)
+	// These paths are for inside the Linux container, so they must start with /
+	// regardless of the host OS
 	for _, binary := range cfg.Sudo {
-		if !filepath.IsAbs(binary) {
+		if !strings.HasPrefix(binary, "/") {
 			return fmt.Errorf("sudo binary must be an absolute path: %s", binary)
 		}
 	}
