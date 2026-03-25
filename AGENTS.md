@@ -6,46 +6,6 @@ This file provides guidance to AI agents when working with code in this reposito
 
 kortex-cli is a command-line interface for launching and managing AI agents (Claude Code, Goose, Cursor) with custom configurations. It provides a unified way to start different agents with specific settings including skills, MCP server connections, and LLM integrations.
 
-## Implementation Plans
-
-Implementation plans for features and fixes are stored in the `docs/plans/` directory. Each plan file is named after the GitHub issue ID it addresses.
-
-**File Naming Convention:**
-- `docs/plans/<issue-id>.md` - Implementation plan for issue #<issue-id>
-- Example: `docs/plans/84.md` contains the plan for issue #84
-
-**Finding Implementation Plans:**
-
-To find the original plan for a piece of code, use git blame to identify the commit that introduced the code, then check the commit message for the related issue ID:
-
-```bash
-# Find the commit that introduced a specific line
-git blame <file-path>
-
-# View the full commit details
-git show <commit-hash>
-
-# The commit message typically references the issue (e.g., "feat: implement feature (#84)")
-# Then read the plan
-cat docs/plans/84.md
-```
-
-**Plan Structure:**
-
-Implementation plans typically include:
-- Context and problem description
-- Configuration schemas or data structures
-- Implementation steps with file locations
-- Testing requirements
-- Verification steps
-- Reference patterns from existing code
-
-**Benefits:**
-- Provides historical context for implementation decisions
-- Documents the original design and requirements
-- Helps agents understand the reasoning behind code structure
-- Useful for debugging and maintenance
-
 ## Build and Test Commands
 
 All build and test commands are available through the Makefile. Run `make help` to see all available commands.
