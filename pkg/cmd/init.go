@@ -184,6 +184,7 @@ func (i *initCmd) run(cmd *cobra.Command, args []string) error {
 		cmd.Printf("Registered workspace:\n")
 		cmd.Printf("  ID: %s\n", addedInstance.GetID())
 		cmd.Printf("  Name: %s\n", addedInstance.GetName())
+		cmd.Printf("  Project: %s\n", addedInstance.GetProject())
 		cmd.Printf("  Sources directory: %s\n", addedInstance.GetSourceDir())
 		cmd.Printf("  Configuration directory: %s\n", addedInstance.GetConfigDir())
 	} else {

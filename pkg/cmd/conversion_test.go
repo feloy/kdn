@@ -98,9 +98,10 @@ func TestInstanceToWorkspace(t *testing.T) {
 			t.Fatalf("Failed to create instance: %v", err)
 		}
 
-		// Manually set ID (in real usage, Manager sets this)
+		// Manually set ID and Project (in real usage, Manager sets these)
 		instanceData := instance.Dump()
 		instanceData.ID = "test-id-456"
+		instanceData.Project = "test-project"
 		instance, _ = instances.NewInstanceFromData(instanceData)
 
 		result := instanceToWorkspace(instance)
@@ -111,6 +112,10 @@ func TestInstanceToWorkspace(t *testing.T) {
 
 		if result.Name != "test-workspace" {
 			t.Errorf("Expected name 'test-workspace', got '%s'", result.Name)
+		}
+
+		if result.Project != "test-project" {
+			t.Errorf("Expected project 'test-project', got '%s'", result.Project)
 		}
 
 		if result.Paths.Source != sourceDir {
@@ -161,6 +166,9 @@ func TestInstanceToWorkspace(t *testing.T) {
 		}
 		if _, exists := parsed["name"]; !exists {
 			t.Error("Expected 'name' field in JSON")
+		}
+		if _, exists := parsed["project"]; !exists {
+			t.Error("Expected 'project' field in JSON")
 		}
 		if _, exists := parsed["paths"]; !exists {
 			t.Error("Expected 'paths' field in JSON")

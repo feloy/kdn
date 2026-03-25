@@ -1016,6 +1016,9 @@ func TestInitCmd_E2E(t *testing.T) {
 		if !strings.Contains(output, "ID:") {
 			t.Errorf("Expected verbose output to contain 'ID:', got: %s", output)
 		}
+		if !strings.Contains(output, "Project:") {
+			t.Errorf("Expected verbose output to contain 'Project:', got: %s", output)
+		}
 		if !strings.Contains(output, "Sources directory:") {
 			t.Errorf("Expected verbose output to contain 'Sources directory:', got: %s", output)
 		}
@@ -1053,6 +1056,10 @@ func TestInitCmd_E2E(t *testing.T) {
 
 		if !strings.Contains(output, inst.GetID()) {
 			t.Errorf("Expected verbose output to contain instance ID %s, got: %s", inst.GetID(), output)
+		}
+
+		if !strings.Contains(output, inst.GetProject()) {
+			t.Errorf("Expected verbose output to contain project %s, got: %s", inst.GetProject(), output)
 		}
 	})
 
@@ -1416,6 +1423,10 @@ func TestInitCmd_E2E(t *testing.T) {
 			t.Error("Expected non-empty Name in JSON output")
 		}
 
+		if workspace.Project == "" {
+			t.Error("Expected non-empty Project in JSON output")
+		}
+
 		if workspace.Paths.Source == "" {
 			t.Error("Expected non-empty Source path in JSON output")
 		}
@@ -1444,6 +1455,9 @@ func TestInitCmd_E2E(t *testing.T) {
 		}
 		if _, exists := parsed["name"]; !exists {
 			t.Error("Expected 'name' field in JSON")
+		}
+		if _, exists := parsed["project"]; !exists {
+			t.Error("Expected 'project' field in JSON")
 		}
 		if _, exists := parsed["paths"]; !exists {
 			t.Error("Expected 'paths' field in JSON")

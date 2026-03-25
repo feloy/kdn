@@ -37,8 +37,9 @@ func instanceToWorkspaceId(instance instances.Instance) api.WorkspaceId {
 // instanceToWorkspace converts an Instance to an api.Workspace
 func instanceToWorkspace(instance instances.Instance) api.Workspace {
 	return api.Workspace{
-		Id:   instance.GetID(),
-		Name: instance.GetName(),
+		Id:      instance.GetID(),
+		Name:    instance.GetName(),
+		Project: instance.GetProject(),
 		Paths: api.WorkspacePaths{
 			Configuration: instance.GetConfigDir(),
 			Source:        instance.GetSourceDir(),
