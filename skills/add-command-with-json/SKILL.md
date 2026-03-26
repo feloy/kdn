@@ -32,6 +32,7 @@ import (
     "github.com/spf13/cobra"
     "github.com/kortex-hub/kortex-cli/pkg/instances"
     // "github.com/kortex-hub/kortex-cli/pkg/runtimesetup"  // Uncomment if registering runtimes
+    // "github.com/kortex-hub/kortex-cli/pkg/steplogger"    // Uncomment if calling runtime methods
     // Add other imports as needed
 )
 
@@ -107,7 +108,28 @@ func (c *<command>Cmd) preRun(cmd *cobra.Command, args []string) error {
     return nil
 }
 
+// createStepLogger creates the appropriate StepLogger based on output mode.
+// Call this in your run() method if your command calls runtime operations.
+func (c *<command>Cmd) createStepLogger(cmd *cobra.Command) steplogger.StepLogger {
+    if c.output == "json" {
+        // No step logging in JSON mode - silent
+        return steplogger.NewNoOpLogger()
+    }
+    // Use text logger with spinners for text output
+    return steplogger.NewTextLogger(cmd.ErrOrStderr())
+}
+
 func (c *<command>Cmd) run(cmd *cobra.Command, args []string) error {
+    // If your command calls runtime methods (Create, Start, Stop, Remove),
+    // inject StepLogger into context for user progress feedback:
+    //
+    // logger := c.createStepLogger(cmd)
+    // defer logger.Complete()
+    // ctx := steplogger.WithLogger(cmd.Context(), logger)
+    //
+    // Then pass ctx to runtime methods:
+    // info, err := runtime.Create(ctx, params)
+
     // Perform the command logic
 
     // ALL errors use outputErrorIfJSON
@@ -286,6 +308,59 @@ make test
 ### 5. Update Documentation
 
 If the command warrants user-facing documentation, update relevant docs.
+
+## StepLogger Integration (for Runtime Operations)
+
+If your command calls runtime methods (Create, Start, Stop, Remove), you **MUST** inject a StepLogger into the context to provide user progress feedback.
+
+**When to use:**
+- Commands that call `runtime.Create()`, `runtime.Start()`, `runtime.Stop()`, or `runtime.Remove()`
+- Any command that performs long-running operations where users benefit from progress updates
+
+**How to integrate:**
+
+1. **Add the import** (uncomment in the imports section):
+```go
+"github.com/kortex-hub/kortex-cli/pkg/steplogger"
+```
+
+2. **Add the helper method** (already included in the template above):
+```go
+func (c *<command>Cmd) createStepLogger(cmd *cobra.Command) steplogger.StepLogger {
+    if c.output == "json" {
+        return steplogger.NewNoOpLogger()  // Silent in JSON mode
+    }
+    return steplogger.NewTextLogger(cmd.ErrOrStderr())  // Spinners in text mode
+}
+```
+
+3. **Use in run() method** before calling runtime operations:
+```go
+func (c *<command>Cmd) run(cmd *cobra.Command, args []string) error {
+    // Create and attach logger
+    logger := c.createStepLogger(cmd)
+    defer logger.Complete()
+    ctx := steplogger.WithLogger(cmd.Context(), logger)
+
+    // Call runtime methods with the context
+    info, err := runtime.Start(ctx, workspaceID)
+    if err != nil {
+        return outputErrorIfJSON(cmd, c.output, err)
+    }
+
+    // ... rest of implementation
+}
+```
+
+**Benefits:**
+- Users see progress spinners during long operations (e.g., "⠋ Starting container...")
+- Automatic silence in JSON mode (no pollution of JSON output)
+- Clear feedback on which step failed if an error occurs
+
+**See also:**
+- AGENTS.md - Complete StepLogger documentation
+- `pkg/cmd/init.go` - Example with Create operation
+- `pkg/cmd/workspace_start.go` - Example with Start operation
 
 ## Key Points
 

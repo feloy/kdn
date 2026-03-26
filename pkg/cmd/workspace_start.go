@@ -27,6 +27,7 @@ import (
 	api "github.com/kortex-hub/kortex-cli-api/cli/go"
 	"github.com/kortex-hub/kortex-cli/pkg/instances"
 	"github.com/kortex-hub/kortex-cli/pkg/runtimesetup"
+	"github.com/kortex-hub/kortex-cli/pkg/steplogger"
 	"github.com/spf13/cobra"
 )
 
@@ -83,8 +84,21 @@ func (w *workspaceStartCmd) preRun(cmd *cobra.Command, args []string) error {
 
 // run executes the workspace start command logic
 func (w *workspaceStartCmd) run(cmd *cobra.Command, args []string) error {
+	// Create appropriate logger based on output mode
+	var logger steplogger.StepLogger
+	if w.output == "json" {
+		// No step logging in JSON mode
+		logger = steplogger.NewNoOpLogger()
+	} else {
+		logger = steplogger.NewTextLogger(cmd.ErrOrStderr())
+	}
+	defer logger.Complete()
+
+	// Attach logger to context
+	ctx := steplogger.WithLogger(cmd.Context(), logger)
+
 	// Start the instance
-	err := w.manager.Start(cmd.Context(), w.id)
+	err := w.manager.Start(ctx, w.id)
 	if err != nil {
 		if errors.Is(err, instances.ErrInstanceNotFound) {
 			if w.output == "json" {

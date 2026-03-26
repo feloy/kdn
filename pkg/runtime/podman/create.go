@@ -23,6 +23,7 @@ import (
 	"strings"
 
 	"github.com/kortex-hub/kortex-cli/pkg/runtime"
+	"github.com/kortex-hub/kortex-cli/pkg/steplogger"
 )
 
 // validateDependencyPath validates that a dependency path doesn't escape above /workspace.
@@ -224,25 +225,34 @@ func (p *podmanRuntime) createContainer(ctx context.Context, args []string) (str
 
 // Create creates a new Podman runtime instance.
 func (p *podmanRuntime) Create(ctx context.Context, params runtime.CreateParams) (runtime.RuntimeInfo, error) {
+	logger := steplogger.FromContext(ctx)
+	defer logger.Complete()
+
 	// Validate parameters
 	if err := p.validateCreateParams(params); err != nil {
 		return runtime.RuntimeInfo{}, err
 	}
 
 	// Create instance directory
+	logger.Start("Creating temporary build directory", "Temporary build directory created")
 	instanceDir, err := p.createInstanceDirectory(params.Name)
 	if err != nil {
+		logger.Fail(err)
 		return runtime.RuntimeInfo{}, err
 	}
 
 	// Create Containerfile
+	logger.Start("Generating Containerfile", "Containerfile generated")
 	if err := p.createContainerfile(instanceDir); err != nil {
+		logger.Fail(err)
 		return runtime.RuntimeInfo{}, err
 	}
 
 	// Build image
 	imageName := fmt.Sprintf("kortex-cli-%s", params.Name)
+	logger.Start(fmt.Sprintf("Building container image: %s", imageName), "Container image built")
 	if err := p.buildImage(ctx, imageName, instanceDir); err != nil {
+		logger.Fail(err)
 		return runtime.RuntimeInfo{}, err
 	}
 
@@ -253,8 +263,10 @@ func (p *podmanRuntime) Create(ctx context.Context, params runtime.CreateParams)
 	}
 
 	// Create container and get its ID directly from podman create output
+	logger.Start(fmt.Sprintf("Creating container: %s", params.Name), "Container created")
 	containerID, err := p.createContainer(ctx, createArgs)
 	if err != nil {
+		logger.Fail(err)
 		return runtime.RuntimeInfo{}, err
 	}
 

@@ -27,6 +27,7 @@ import (
 	api "github.com/kortex-hub/kortex-cli-api/cli/go"
 	"github.com/kortex-hub/kortex-cli/pkg/instances"
 	"github.com/kortex-hub/kortex-cli/pkg/runtimesetup"
+	"github.com/kortex-hub/kortex-cli/pkg/steplogger"
 	"github.com/spf13/cobra"
 )
 
@@ -83,8 +84,21 @@ func (w *workspaceStopCmd) preRun(cmd *cobra.Command, args []string) error {
 
 // run executes the workspace stop command logic
 func (w *workspaceStopCmd) run(cmd *cobra.Command, args []string) error {
+	// Create appropriate logger based on output mode
+	var logger steplogger.StepLogger
+	if w.output == "json" {
+		// No step logging in JSON mode
+		logger = steplogger.NewNoOpLogger()
+	} else {
+		logger = steplogger.NewTextLogger(cmd.ErrOrStderr())
+	}
+	defer logger.Complete()
+
+	// Attach logger to context
+	ctx := steplogger.WithLogger(cmd.Context(), logger)
+
 	// Stop the instance
-	err := w.manager.Stop(cmd.Context(), w.id)
+	err := w.manager.Stop(ctx, w.id)
 	if err != nil {
 		if errors.Is(err, instances.ErrInstanceNotFound) {
 			if w.output == "json" {

@@ -30,6 +30,7 @@ import (
     "github.com/spf13/cobra"
     "github.com/kortex-hub/kortex-cli/pkg/instances"
     // "github.com/kortex-hub/kortex-cli/pkg/runtimesetup"  // Uncomment if registering runtimes
+    // "github.com/kortex-hub/kortex-cli/pkg/steplogger"    // Uncomment if calling runtime methods
     // Add other imports as needed
 )
 
@@ -104,6 +105,16 @@ func (c *<command>Cmd) preRun(cmd *cobra.Command, args []string) error {
 }
 
 func (c *<command>Cmd) run(cmd *cobra.Command, args []string) error {
+    // If your command calls runtime methods (Create, Start, Stop, Remove),
+    // inject StepLogger into context for user progress feedback:
+    //
+    // logger := steplogger.NewTextLogger(cmd.ErrOrStderr())
+    // defer logger.Complete()
+    // ctx := steplogger.WithLogger(cmd.Context(), logger)
+    //
+    // Then pass ctx to runtime methods:
+    // info, err := runtime.Start(ctx, workspaceID)
+
     // Perform the command logic
 
     data, err := c.manager.GetData()
@@ -284,6 +295,49 @@ make test
 ### 5. Update Documentation
 
 If the command warrants user-facing documentation, update relevant docs.
+
+## StepLogger Integration (for Runtime Operations)
+
+If your command calls runtime methods (Create, Start, Stop, Remove), you **MUST** inject a StepLogger into the context to provide user progress feedback.
+
+**When to use:**
+- Commands that call `runtime.Create()`, `runtime.Start()`, `runtime.Stop()`, or `runtime.Remove()`
+- Any command that performs long-running operations where users benefit from progress updates
+
+**How to integrate:**
+
+1. **Add the import** (uncomment in the imports section):
+```go
+"github.com/kortex-hub/kortex-cli/pkg/steplogger"
+```
+
+2. **Use in run() method** before calling runtime operations:
+```go
+func (c *<command>Cmd) run(cmd *cobra.Command, args []string) error {
+    // Create and attach logger
+    logger := steplogger.NewTextLogger(cmd.ErrOrStderr())
+    defer logger.Complete()
+    ctx := steplogger.WithLogger(cmd.Context(), logger)
+
+    // Call runtime methods with the context
+    info, err := runtime.Stop(ctx, workspaceID)
+    if err != nil {
+        return err
+    }
+
+    // ... rest of implementation
+}
+```
+
+**Benefits:**
+- Users see progress spinners during long operations (e.g., "⠋ Stopping container...")
+- Clear feedback on which step failed if an error occurs
+- Professional user experience with visual progress indicators
+
+**See also:**
+- AGENTS.md - Complete StepLogger documentation
+- `pkg/cmd/workspace_stop.go` - Example with Stop operation
+- `pkg/cmd/workspace_start.go` - Example with Start operation
 
 ## Key Points
 

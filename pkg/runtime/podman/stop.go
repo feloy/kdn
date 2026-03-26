@@ -19,17 +19,27 @@ import (
 	"fmt"
 
 	"github.com/kortex-hub/kortex-cli/pkg/runtime"
+	"github.com/kortex-hub/kortex-cli/pkg/steplogger"
 )
 
 // Stop stops a Podman container.
 func (p *podmanRuntime) Stop(ctx context.Context, id string) error {
+	logger := steplogger.FromContext(ctx)
+	defer logger.Complete()
+
 	// Validate the ID parameter
 	if id == "" {
 		return fmt.Errorf("%w: container ID is required", runtime.ErrInvalidParams)
 	}
 
 	// Stop the container
-	return p.stopContainer(ctx, id)
+	logger.Start(fmt.Sprintf("Stopping container: %s", id), "Container stopped")
+	if err := p.stopContainer(ctx, id); err != nil {
+		logger.Fail(err)
+		return err
+	}
+
+	return nil
 }
 
 // stopContainer stops a podman container by ID.

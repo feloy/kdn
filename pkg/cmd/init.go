@@ -29,6 +29,7 @@ import (
 	"github.com/kortex-hub/kortex-cli/pkg/config"
 	"github.com/kortex-hub/kortex-cli/pkg/instances"
 	"github.com/kortex-hub/kortex-cli/pkg/runtimesetup"
+	"github.com/kortex-hub/kortex-cli/pkg/steplogger"
 	"github.com/spf13/cobra"
 )
 
@@ -154,6 +155,19 @@ func (i *initCmd) preRun(cmd *cobra.Command, args []string) error {
 
 // run executes the init command logic
 func (i *initCmd) run(cmd *cobra.Command, args []string) error {
+	// Create appropriate logger based on output mode
+	var logger steplogger.StepLogger
+	if i.output == "json" {
+		// No step logging in JSON mode
+		logger = steplogger.NewNoOpLogger()
+	} else {
+		logger = steplogger.NewTextLogger(cmd.ErrOrStderr())
+	}
+	defer logger.Complete()
+
+	// Attach logger to context
+	ctx := steplogger.WithLogger(cmd.Context(), logger)
+
 	// Create a new instance
 	instance, err := instances.NewInstance(instances.NewInstanceParams{
 		SourceDir: i.absSourcesDir,
@@ -166,7 +180,7 @@ func (i *initCmd) run(cmd *cobra.Command, args []string) error {
 
 	// Add the instance to the manager
 	// Manager handles config loading and merging internally
-	addedInstance, err := i.manager.Add(cmd.Context(), instances.AddOptions{
+	addedInstance, err := i.manager.Add(ctx, instances.AddOptions{
 		Instance:        instance,
 		RuntimeType:     i.runtime,
 		WorkspaceConfig: i.workspaceConfig,

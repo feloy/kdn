@@ -33,7 +33,9 @@ package <runtime-name>
 
 import (
     "context"
+    "fmt"
     "github.com/kortex-hub/kortex-cli/pkg/runtime"
+    "github.com/kortex-hub/kortex-cli/pkg/steplogger"
 )
 
 type <runtime-name>Runtime struct {
@@ -73,26 +75,86 @@ func (r *<runtime-name>Runtime) Available() bool {
 
 // Create creates a new runtime instance
 func (r *<runtime-name>Runtime) Create(ctx context.Context, params runtime.CreateParams) (runtime.RuntimeInfo, error) {
-    // Implementation: create workspace on the platform
-    // Use params.Name, params.SourcePath, params.ConfigPath
-    return runtime.RuntimeInfo{}, nil
+    logger := steplogger.FromContext(ctx)
+    defer logger.Complete()
+
+    // Step 1: Prepare environment
+    logger.Start("Preparing workspace environment", "Workspace environment prepared")
+    if err := r.prepareEnvironment(params); err != nil {
+        logger.Fail(err)
+        return runtime.RuntimeInfo{}, err
+    }
+
+    // Step 2: Create instance
+    logger.Start("Creating workspace instance", "Workspace instance created")
+    info, err := r.createInstance(ctx, params)
+    if err != nil {
+        logger.Fail(err)
+        return runtime.RuntimeInfo{}, err
+    }
+
+    return info, nil
 }
 
 // Start starts a runtime instance
 func (r *<runtime-name>Runtime) Start(ctx context.Context, id string) (runtime.RuntimeInfo, error) {
-    // Implementation: start the workspace
-    return runtime.RuntimeInfo{}, nil
+    logger := steplogger.FromContext(ctx)
+    defer logger.Complete()
+
+    logger.Start(fmt.Sprintf("Starting workspace: %s", id), "Workspace started")
+    if err := r.startInstance(ctx, id); err != nil {
+        logger.Fail(err)
+        return runtime.RuntimeInfo{}, err
+    }
+
+    logger.Start("Verifying workspace status", "Workspace status verified")
+    info, err := r.getInfo(ctx, id)
+    if err != nil {
+        logger.Fail(err)
+        return runtime.RuntimeInfo{}, err
+    }
+
+    return info, nil
 }
 
 // Stop stops a runtime instance
 func (r *<runtime-name>Runtime) Stop(ctx context.Context, id string) error {
-    // Implementation: stop the workspace
+    logger := steplogger.FromContext(ctx)
+    defer logger.Complete()
+
+    logger.Start(fmt.Sprintf("Stopping workspace: %s", id), "Workspace stopped")
+    if err := r.stopInstance(ctx, id); err != nil {
+        logger.Fail(err)
+        return err
+    }
+
     return nil
 }
 
 // Remove removes a runtime instance
 func (r *<runtime-name>Runtime) Remove(ctx context.Context, id string) error {
-    // Implementation: remove the workspace
+    logger := steplogger.FromContext(ctx)
+    defer logger.Complete()
+
+    logger.Start("Checking workspace state", "Workspace state checked")
+    state, err := r.checkState(ctx, id)
+    if err != nil {
+        logger.Fail(err)
+        return err
+    }
+
+    if state == "running" {
+        err := fmt.Errorf("workspace is still running, stop it first")
+        logger.Fail(err)
+        return err
+    }
+
+    logger.Start(fmt.Sprintf("Removing workspace: %s", id), "Workspace removed")
+    if err := r.removeInstance(ctx, id); err != nil {
+        logger.Fail(err)
+        return err
+    }
+
     return nil
 }
 
@@ -124,6 +186,31 @@ var availableRuntimes = []runtimeFactory{
 }
 ```
 
+### 3.5. StepLogger Integration
+
+**IMPORTANT**: All runtime methods that accept `context.Context` MUST use StepLogger for user feedback.
+
+**Required imports:**
+```go
+import (
+    "github.com/kortex-hub/kortex-cli/pkg/steplogger"
+)
+```
+
+**Pattern:**
+1. Retrieve logger from context: `logger := steplogger.FromContext(ctx)`
+2. Defer completion: `defer logger.Complete()`
+3. Start each step: `logger.Start("In progress message", "Completion message")`
+4. Fail on errors: `logger.Fail(err)` before returning the error
+
+**Benefits:**
+- Users see progress during long-running operations
+- Clear feedback on which step failed
+- Automatic silence in JSON mode
+- No changes needed for JSON vs text output
+
+**See AGENTS.md** for complete StepLogger documentation and best practices.
+
 ### 4. Add Tests
 
 Create `pkg/runtime/<runtime-name>/<runtime-name>_test.go`:
@@ -134,6 +221,7 @@ package <runtime-name>
 import (
     "context"
     "testing"
+    "github.com/kortex-hub/kortex-cli/pkg/steplogger"
 )
 
 func TestNew(t *testing.T) {
@@ -152,11 +240,65 @@ func TestNew(t *testing.T) {
 func TestCreate(t *testing.T) {
     t.Parallel()
 
-    // Add tests for Create method
+    // Test basic functionality
+    rt := New()
+    _, err := rt.Create(context.Background(), params)
+    if err != nil {
+        t.Fatalf("Create() failed: %v", err)
+    }
 }
 
-// Add tests for other methods...
+func TestCreate_StepLogger(t *testing.T) {
+    t.Parallel()
+
+    // Create fake step logger to track calls
+    fakeLogger := &fakeStepLogger{}
+    ctx := steplogger.WithLogger(context.Background(), fakeLogger)
+
+    rt := New()
+    _, err := rt.Create(ctx, params)
+    if err != nil {
+        t.Fatalf("Create() failed: %v", err)
+    }
+
+    // Verify step logger was used correctly
+    if len(fakeLogger.startCalls) == 0 {
+        t.Error("Expected Start() to be called")
+    }
+    if fakeLogger.completeCalls != 1 {
+        t.Errorf("Expected Complete() to be called once, got %d", fakeLogger.completeCalls)
+    }
+}
+
+// Fake step logger for testing
+type fakeStepLogger struct {
+    startCalls    []stepCall
+    failCalls     []error
+    completeCalls int
+}
+
+type stepCall struct {
+    inProgress string
+    completed  string
+}
+
+func (f *fakeStepLogger) Start(inProgress, completed string) {
+    f.startCalls = append(f.startCalls, stepCall{inProgress, completed})
+}
+
+func (f *fakeStepLogger) Fail(err error) {
+    f.failCalls = append(f.failCalls, err)
+}
+
+func (f *fakeStepLogger) Complete() {
+    f.completeCalls++
+}
+
+// Add tests for other methods (Start, Stop, Remove)...
+// Each should include both functional and StepLogger tests
 ```
+
+**Reference:** See `pkg/runtime/podman/steplogger_test.go` and related test files for complete examples.
 
 ### 5. Update Copyright Headers
 

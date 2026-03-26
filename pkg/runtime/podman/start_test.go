@@ -22,6 +22,7 @@ import (
 
 	"github.com/kortex-hub/kortex-cli/pkg/runtime"
 	"github.com/kortex-hub/kortex-cli/pkg/runtime/podman/exec"
+	"github.com/kortex-hub/kortex-cli/pkg/steplogger"
 )
 
 func TestStart_ValidatesID(t *testing.T) {
@@ -127,4 +128,163 @@ func TestStart_InspectFailure(t *testing.T) {
 	// Verify both Run and Output were called
 	fakeExec.AssertRunCalledWith(t, "start", containerID)
 	fakeExec.AssertOutputCalledWith(t, "inspect", "--format", "{{.Id}}|{{.State.Status}}|{{.ImageName}}", containerID)
+}
+
+func TestStart_StepLogger_Success(t *testing.T) {
+	t.Parallel()
+
+	containerID := "abc123def456"
+	fakeExec := exec.NewFake()
+
+	// Set up OutputFunc to return container info
+	fakeExec.OutputFunc = func(ctx context.Context, args ...string) ([]byte, error) {
+		output := fmt.Sprintf("%s|running|kortex-cli-test\n", containerID)
+		return []byte(output), nil
+	}
+
+	p := newWithDeps(&fakeSystem{}, fakeExec).(*podmanRuntime)
+
+	fakeLogger := &fakeStepLogger{}
+	ctx := steplogger.WithLogger(context.Background(), fakeLogger)
+
+	_, err := p.Start(ctx, containerID)
+	if err != nil {
+		t.Fatalf("Start() failed: %v", err)
+	}
+
+	// Verify Complete was called once (deferred call)
+	if fakeLogger.completeCalls != 1 {
+		t.Errorf("Expected Complete() to be called 1 time, got %d", fakeLogger.completeCalls)
+	}
+
+	// Verify no Fail calls
+	if len(fakeLogger.failCalls) != 0 {
+		t.Errorf("Expected no Fail() calls, got %d", len(fakeLogger.failCalls))
+	}
+
+	// Verify Start was called 2 times with correct messages
+	expectedSteps := []stepCall{
+		{
+			inProgress: "Starting container: abc123def456",
+			completed:  "Container started",
+		},
+		{
+			inProgress: "Verifying container status",
+			completed:  "Container status verified",
+		},
+	}
+
+	if len(fakeLogger.startCalls) != len(expectedSteps) {
+		t.Fatalf("Expected %d Start() calls, got %d", len(expectedSteps), len(fakeLogger.startCalls))
+	}
+
+	for i, expected := range expectedSteps {
+		actual := fakeLogger.startCalls[i]
+		if actual.inProgress != expected.inProgress {
+			t.Errorf("Step %d: expected inProgress %q, got %q", i, expected.inProgress, actual.inProgress)
+		}
+		if actual.completed != expected.completed {
+			t.Errorf("Step %d: expected completed %q, got %q", i, expected.completed, actual.completed)
+		}
+	}
+}
+
+func TestStart_StepLogger_FailOnStartContainer(t *testing.T) {
+	t.Parallel()
+
+	containerID := "abc123"
+	fakeExec := exec.NewFake()
+
+	// Set up RunFunc to return an error
+	fakeExec.RunFunc = func(ctx context.Context, args ...string) error {
+		return fmt.Errorf("container not found")
+	}
+
+	p := newWithDeps(&fakeSystem{}, fakeExec).(*podmanRuntime)
+
+	fakeLogger := &fakeStepLogger{}
+	ctx := steplogger.WithLogger(context.Background(), fakeLogger)
+
+	_, err := p.Start(ctx, containerID)
+	if err == nil {
+		t.Fatal("Expected Start() to fail, got nil")
+	}
+
+	// Verify Complete was called once (deferred call)
+	if fakeLogger.completeCalls != 1 {
+		t.Errorf("Expected Complete() to be called 1 time, got %d", fakeLogger.completeCalls)
+	}
+
+	// Verify Start was called once (start container step)
+	if len(fakeLogger.startCalls) != 1 {
+		t.Fatalf("Expected 1 Start() call, got %d", len(fakeLogger.startCalls))
+	}
+
+	if fakeLogger.startCalls[0].inProgress != "Starting container: abc123" {
+		t.Errorf("Expected first step to be 'Starting container: abc123', got %q", fakeLogger.startCalls[0].inProgress)
+	}
+
+	// Verify Fail was called once
+	if len(fakeLogger.failCalls) != 1 {
+		t.Fatalf("Expected 1 Fail() call, got %d", len(fakeLogger.failCalls))
+	}
+
+	if fakeLogger.failCalls[0] == nil {
+		t.Error("Expected Fail() to be called with non-nil error")
+	}
+}
+
+func TestStart_StepLogger_FailOnGetContainerInfo(t *testing.T) {
+	t.Parallel()
+
+	containerID := "abc123"
+	fakeExec := exec.NewFake()
+
+	// Set up RunFunc to succeed, but OutputFunc to fail
+	fakeExec.RunFunc = func(ctx context.Context, args ...string) error {
+		return nil
+	}
+	fakeExec.OutputFunc = func(ctx context.Context, args ...string) ([]byte, error) {
+		return nil, fmt.Errorf("failed to inspect container")
+	}
+
+	p := newWithDeps(&fakeSystem{}, fakeExec).(*podmanRuntime)
+
+	fakeLogger := &fakeStepLogger{}
+	ctx := steplogger.WithLogger(context.Background(), fakeLogger)
+
+	_, err := p.Start(ctx, containerID)
+	if err == nil {
+		t.Fatal("Expected Start() to fail, got nil")
+	}
+
+	// Verify Complete was called once (deferred call)
+	if fakeLogger.completeCalls != 1 {
+		t.Errorf("Expected Complete() to be called 1 time, got %d", fakeLogger.completeCalls)
+	}
+
+	// Verify Start was called twice (start container, verify status)
+	if len(fakeLogger.startCalls) != 2 {
+		t.Fatalf("Expected 2 Start() calls, got %d", len(fakeLogger.startCalls))
+	}
+
+	expectedSteps := []string{
+		"Starting container: abc123",
+		"Verifying container status",
+	}
+
+	for i, expected := range expectedSteps {
+		if fakeLogger.startCalls[i].inProgress != expected {
+			t.Errorf("Step %d: expected %q, got %q", i, expected, fakeLogger.startCalls[i].inProgress)
+		}
+	}
+
+	// Verify Fail was called once
+	if len(fakeLogger.failCalls) != 1 {
+		t.Fatalf("Expected 1 Fail() call, got %d", len(fakeLogger.failCalls))
+	}
+
+	if fakeLogger.failCalls[0] == nil {
+		t.Error("Expected Fail() to be called with non-nil error")
+	}
 }

@@ -15,6 +15,7 @@
 package podman
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -24,6 +25,8 @@ import (
 
 	workspace "github.com/kortex-hub/kortex-cli-api/workspace-configuration/go"
 	"github.com/kortex-hub/kortex-cli/pkg/runtime"
+	"github.com/kortex-hub/kortex-cli/pkg/runtime/podman/exec"
+	"github.com/kortex-hub/kortex-cli/pkg/steplogger"
 )
 
 func TestValidateDependencyPath(t *testing.T) {
@@ -534,4 +537,325 @@ func TestBuildContainerArgs(t *testing.T) {
 			t.Error("Expected sleep infinity command")
 		}
 	})
+}
+
+func TestCreate_StepLogger_Success(t *testing.T) {
+	t.Parallel()
+
+	storageDir := t.TempDir()
+	sourcePath := t.TempDir()
+
+	fakeExec := exec.NewFake()
+	fakeExec.RunFunc = func(ctx context.Context, args ...string) error {
+		return nil
+	}
+	fakeExec.OutputFunc = func(ctx context.Context, args ...string) ([]byte, error) {
+		return []byte("container-id-123"), nil
+	}
+
+	p := newWithDeps(&fakeSystem{}, fakeExec).(*podmanRuntime)
+	p.storageDir = storageDir
+
+	fakeLogger := &fakeStepLogger{}
+	ctx := steplogger.WithLogger(context.Background(), fakeLogger)
+
+	params := runtime.CreateParams{
+		Name:       "test-workspace",
+		SourcePath: sourcePath,
+	}
+
+	_, err := p.Create(ctx, params)
+	if err != nil {
+		t.Fatalf("Create() failed: %v", err)
+	}
+
+	// Verify Complete was called once (deferred call)
+	if fakeLogger.completeCalls != 1 {
+		t.Errorf("Expected Complete() to be called 1 time, got %d", fakeLogger.completeCalls)
+	}
+
+	// Verify no Fail calls
+	if len(fakeLogger.failCalls) != 0 {
+		t.Errorf("Expected no Fail() calls, got %d", len(fakeLogger.failCalls))
+	}
+
+	// Verify Start was called 4 times with correct messages
+	expectedSteps := []stepCall{
+		{
+			inProgress: "Creating temporary build directory",
+			completed:  "Temporary build directory created",
+		},
+		{
+			inProgress: "Generating Containerfile",
+			completed:  "Containerfile generated",
+		},
+		{
+			inProgress: "Building container image: kortex-cli-test-workspace",
+			completed:  "Container image built",
+		},
+		{
+			inProgress: "Creating container: test-workspace",
+			completed:  "Container created",
+		},
+	}
+
+	if len(fakeLogger.startCalls) != len(expectedSteps) {
+		t.Fatalf("Expected %d Start() calls, got %d", len(expectedSteps), len(fakeLogger.startCalls))
+	}
+
+	for i, expected := range expectedSteps {
+		actual := fakeLogger.startCalls[i]
+		if actual.inProgress != expected.inProgress {
+			t.Errorf("Step %d: expected inProgress %q, got %q", i, expected.inProgress, actual.inProgress)
+		}
+		if actual.completed != expected.completed {
+			t.Errorf("Step %d: expected completed %q, got %q", i, expected.completed, actual.completed)
+		}
+	}
+}
+
+func TestCreate_StepLogger_FailOnCreateInstanceDirectory(t *testing.T) {
+	t.Parallel()
+
+	// Use a file as storage dir to cause createInstanceDirectory to fail
+	storageDir := t.TempDir()
+	notADir := filepath.Join(storageDir, "file")
+	os.WriteFile(notADir, []byte("test"), 0644)
+
+	sourcePath := t.TempDir()
+
+	p := &podmanRuntime{
+		system:     &fakeSystem{},
+		executor:   exec.NewFake(),
+		storageDir: notADir, // Will fail when trying to create subdirectory
+	}
+
+	fakeLogger := &fakeStepLogger{}
+	ctx := steplogger.WithLogger(context.Background(), fakeLogger)
+
+	params := runtime.CreateParams{
+		Name:       "test-workspace",
+		SourcePath: sourcePath,
+	}
+
+	_, err := p.Create(ctx, params)
+	if err == nil {
+		t.Fatal("Expected Create() to fail, got nil")
+	}
+
+	// Verify Complete was called once (deferred call)
+	if fakeLogger.completeCalls != 1 {
+		t.Errorf("Expected Complete() to be called 1 time, got %d", fakeLogger.completeCalls)
+	}
+
+	// Verify Start was called for the first step
+	if len(fakeLogger.startCalls) != 1 {
+		t.Fatalf("Expected 1 Start() call, got %d", len(fakeLogger.startCalls))
+	}
+
+	if fakeLogger.startCalls[0].inProgress != "Creating temporary build directory" {
+		t.Errorf("Expected first step to be 'Creating temporary build directory', got %q", fakeLogger.startCalls[0].inProgress)
+	}
+
+	// Verify Fail was called once with the error
+	if len(fakeLogger.failCalls) != 1 {
+		t.Fatalf("Expected 1 Fail() call, got %d", len(fakeLogger.failCalls))
+	}
+
+	if fakeLogger.failCalls[0] == nil {
+		t.Error("Expected Fail() to be called with non-nil error")
+	}
+}
+
+func TestCreate_StepLogger_FailOnCreateContainerfile(t *testing.T) {
+	t.Parallel()
+
+	storageDir := t.TempDir()
+	sourcePath := t.TempDir()
+
+	// Create instance directory and a directory named "Containerfile" to cause path collision
+	instanceDir := filepath.Join(storageDir, "instances", "test-workspace")
+	os.MkdirAll(instanceDir, 0755)
+	containerfileDir := filepath.Join(instanceDir, "Containerfile")
+	os.Mkdir(containerfileDir, 0755) // This will cause os.WriteFile to fail
+	defer os.RemoveAll(containerfileDir)
+
+	p := &podmanRuntime{
+		system:     &fakeSystem{},
+		executor:   exec.NewFake(),
+		storageDir: storageDir,
+	}
+
+	fakeLogger := &fakeStepLogger{}
+	ctx := steplogger.WithLogger(context.Background(), fakeLogger)
+
+	params := runtime.CreateParams{
+		Name:       "test-workspace",
+		SourcePath: sourcePath,
+	}
+
+	_, err := p.Create(ctx, params)
+	if err == nil {
+		t.Fatal("Expected Create() to fail, got nil")
+	}
+
+	// Verify Complete was called once (deferred call)
+	if fakeLogger.completeCalls != 1 {
+		t.Errorf("Expected Complete() to be called 1 time, got %d", fakeLogger.completeCalls)
+	}
+
+	// Verify Start was called twice (create dir, then create containerfile)
+	if len(fakeLogger.startCalls) != 2 {
+		t.Fatalf("Expected 2 Start() calls, got %d", len(fakeLogger.startCalls))
+	}
+
+	expectedSteps := []string{
+		"Creating temporary build directory",
+		"Generating Containerfile",
+	}
+
+	for i, expected := range expectedSteps {
+		if fakeLogger.startCalls[i].inProgress != expected {
+			t.Errorf("Step %d: expected %q, got %q", i, expected, fakeLogger.startCalls[i].inProgress)
+		}
+	}
+
+	// Verify Fail was called once
+	if len(fakeLogger.failCalls) != 1 {
+		t.Fatalf("Expected 1 Fail() call, got %d", len(fakeLogger.failCalls))
+	}
+
+	if fakeLogger.failCalls[0] == nil {
+		t.Error("Expected Fail() to be called with non-nil error")
+	}
+}
+
+func TestCreate_StepLogger_FailOnBuildImage(t *testing.T) {
+	t.Parallel()
+
+	storageDir := t.TempDir()
+	sourcePath := t.TempDir()
+
+	fakeExec := exec.NewFake()
+	// Make Run fail on build command
+	fakeExec.RunFunc = func(ctx context.Context, args ...string) error {
+		if len(args) > 0 && args[0] == "build" {
+			return fmt.Errorf("build failed")
+		}
+		return nil
+	}
+
+	p := newWithDeps(&fakeSystem{}, fakeExec).(*podmanRuntime)
+	p.storageDir = storageDir
+
+	fakeLogger := &fakeStepLogger{}
+	ctx := steplogger.WithLogger(context.Background(), fakeLogger)
+
+	params := runtime.CreateParams{
+		Name:       "test-workspace",
+		SourcePath: sourcePath,
+	}
+
+	_, err := p.Create(ctx, params)
+	if err == nil {
+		t.Fatal("Expected Create() to fail, got nil")
+	}
+
+	// Verify Complete was called once (deferred call)
+	if fakeLogger.completeCalls != 1 {
+		t.Errorf("Expected Complete() to be called 1 time, got %d", fakeLogger.completeCalls)
+	}
+
+	// Verify Start was called 3 times (create dir, containerfile, build image)
+	if len(fakeLogger.startCalls) != 3 {
+		t.Fatalf("Expected 3 Start() calls, got %d", len(fakeLogger.startCalls))
+	}
+
+	expectedSteps := []string{
+		"Creating temporary build directory",
+		"Generating Containerfile",
+		"Building container image: kortex-cli-test-workspace",
+	}
+
+	for i, expected := range expectedSteps {
+		if fakeLogger.startCalls[i].inProgress != expected {
+			t.Errorf("Step %d: expected %q, got %q", i, expected, fakeLogger.startCalls[i].inProgress)
+		}
+	}
+
+	// Verify Fail was called once
+	if len(fakeLogger.failCalls) != 1 {
+		t.Fatalf("Expected 1 Fail() call, got %d", len(fakeLogger.failCalls))
+	}
+
+	if fakeLogger.failCalls[0] == nil {
+		t.Error("Expected Fail() to be called with non-nil error")
+	}
+}
+
+func TestCreate_StepLogger_FailOnCreateContainer(t *testing.T) {
+	t.Parallel()
+
+	storageDir := t.TempDir()
+	sourcePath := t.TempDir()
+
+	fakeExec := exec.NewFake()
+	// Make Run succeed for build, but Output fail for create
+	fakeExec.RunFunc = func(ctx context.Context, args ...string) error {
+		return nil
+	}
+	fakeExec.OutputFunc = func(ctx context.Context, args ...string) ([]byte, error) {
+		if len(args) > 0 && args[0] == "create" {
+			return nil, fmt.Errorf("create container failed")
+		}
+		return []byte("output"), nil
+	}
+
+	p := newWithDeps(&fakeSystem{}, fakeExec).(*podmanRuntime)
+	p.storageDir = storageDir
+
+	fakeLogger := &fakeStepLogger{}
+	ctx := steplogger.WithLogger(context.Background(), fakeLogger)
+
+	params := runtime.CreateParams{
+		Name:       "test-workspace",
+		SourcePath: sourcePath,
+	}
+
+	_, err := p.Create(ctx, params)
+	if err == nil {
+		t.Fatal("Expected Create() to fail, got nil")
+	}
+
+	// Verify Complete was called once (deferred call)
+	if fakeLogger.completeCalls != 1 {
+		t.Errorf("Expected Complete() to be called 1 time, got %d", fakeLogger.completeCalls)
+	}
+
+	// Verify Start was called 4 times (all steps)
+	if len(fakeLogger.startCalls) != 4 {
+		t.Fatalf("Expected 4 Start() calls, got %d", len(fakeLogger.startCalls))
+	}
+
+	expectedSteps := []string{
+		"Creating temporary build directory",
+		"Generating Containerfile",
+		"Building container image: kortex-cli-test-workspace",
+		"Creating container: test-workspace",
+	}
+
+	for i, expected := range expectedSteps {
+		if fakeLogger.startCalls[i].inProgress != expected {
+			t.Errorf("Step %d: expected %q, got %q", i, expected, fakeLogger.startCalls[i].inProgress)
+		}
+	}
+
+	// Verify Fail was called once
+	if len(fakeLogger.failCalls) != 1 {
+		t.Fatalf("Expected 1 Fail() call, got %d", len(fakeLogger.failCalls))
+	}
+
+	if fakeLogger.failCalls[0] == nil {
+		t.Error("Expected Fail() to be called with non-nil error")
+	}
 }

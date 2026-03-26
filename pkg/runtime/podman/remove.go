@@ -20,32 +20,46 @@ import (
 	"strings"
 
 	"github.com/kortex-hub/kortex-cli/pkg/runtime"
+	"github.com/kortex-hub/kortex-cli/pkg/steplogger"
 )
 
 // Remove removes a Podman container and its associated resources.
 func (p *podmanRuntime) Remove(ctx context.Context, id string) error {
+	logger := steplogger.FromContext(ctx)
+	defer logger.Complete()
+
 	// Validate the ID parameter
 	if id == "" {
 		return fmt.Errorf("%w: container ID is required", runtime.ErrInvalidParams)
 	}
 
 	// Check if the container exists and get its state
+	logger.Start("Checking container state", "Container state checked")
 	info, err := p.getContainerInfo(ctx, id)
 	if err != nil {
 		// If the container doesn't exist, treat it as already removed (idempotent)
 		if isNotFoundError(err) {
 			return nil
 		}
+		logger.Fail(err)
 		return err
 	}
 
 	// Check if the container is running
 	if info.State == "running" {
-		return fmt.Errorf("container %s is still running, stop it first", id)
+		err := fmt.Errorf("container %s is still running, stop it first", id)
+		logger.Fail(err)
+		return err
 	}
 
 	// Remove the container
-	return p.removeContainer(ctx, id)
+	logger.Start(fmt.Sprintf("Removing container: %s", id), "Container removed")
+	if err := p.removeContainer(ctx, id); err != nil {
+		logger.Fail(err)
+		return err
+	}
+
+	return nil
 }
 
 // removeContainer removes a podman container by ID.

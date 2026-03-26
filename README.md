@@ -394,16 +394,37 @@ The container's working directory is set to `/workspace/sources`, which is where
 ```bash
 # Register a workspace with the Podman runtime
 kortex-cli init /path/to/project --runtime podman
+```
 
-# Start the workspace (builds image and starts container)
+**User Experience:**
+
+When you register a workspace with the Podman runtime, you'll see progress feedback for each operation:
+
+```text
+⠋ Creating temporary build directory
+✓ Temporary build directory created
+⠋ Generating Containerfile
+✓ Containerfile generated
+⠋ Building container image: kortex-cli-myproject
+✓ Container image built
+⠋ Creating container: myproject
+✓ Container created
+```
+
+The `init` command will:
+1. Create a temporary build directory - **with progress spinner**
+2. Generate a Containerfile with the configuration above - **with progress spinner**
+3. Build a custom image (tagged as `kortex-cli-<workspace-name>`) - **with progress spinner**
+4. Create a container with your source code mounted - **with progress spinner**
+
+After registration, you can start the workspace:
+
+```bash
+# Start the workspace
 kortex-cli start <workspace-id>
 ```
 
-The first time you start a workspace, the Podman runtime will:
-1. Create a Containerfile with the configuration above
-2. Build a custom image (tagged as `kortex-cli-<workspace-name>`)
-3. Create a container with your source code mounted
-4. Start the container and make it ready for use
+**Note:** When using `--output json`, all progress spinners are hidden to avoid polluting the JSON output.
 
 ## Workspace Configuration
 

@@ -22,6 +22,7 @@ import (
 
 	"github.com/kortex-hub/kortex-cli/pkg/runtime"
 	"github.com/kortex-hub/kortex-cli/pkg/runtime/podman/exec"
+	"github.com/kortex-hub/kortex-cli/pkg/steplogger"
 )
 
 func TestRemove_ValidatesID(t *testing.T) {
@@ -244,4 +245,257 @@ func stringContains(s, substr string) bool {
 		}
 	}
 	return false
+}
+
+func TestRemove_StepLogger_Success(t *testing.T) {
+	t.Parallel()
+
+	containerID := "abc123def456"
+	fakeExec := exec.NewFake()
+
+	// Set up OutputFunc to return stopped container info
+	fakeExec.OutputFunc = func(ctx context.Context, args ...string) ([]byte, error) {
+		output := fmt.Sprintf("%s|exited|kortex-cli-test\n", containerID)
+		return []byte(output), nil
+	}
+
+	p := newWithDeps(&fakeSystem{}, fakeExec).(*podmanRuntime)
+
+	fakeLogger := &fakeStepLogger{}
+	ctx := steplogger.WithLogger(context.Background(), fakeLogger)
+
+	err := p.Remove(ctx, containerID)
+	if err != nil {
+		t.Fatalf("Remove() failed: %v", err)
+	}
+
+	// Verify Complete was called once (deferred call)
+	if fakeLogger.completeCalls != 1 {
+		t.Errorf("Expected Complete() to be called 1 time, got %d", fakeLogger.completeCalls)
+	}
+
+	// Verify no Fail calls
+	if len(fakeLogger.failCalls) != 0 {
+		t.Errorf("Expected no Fail() calls, got %d", len(fakeLogger.failCalls))
+	}
+
+	// Verify Start was called 2 times with correct messages
+	expectedSteps := []stepCall{
+		{
+			inProgress: "Checking container state",
+			completed:  "Container state checked",
+		},
+		{
+			inProgress: "Removing container: abc123def456",
+			completed:  "Container removed",
+		},
+	}
+
+	if len(fakeLogger.startCalls) != len(expectedSteps) {
+		t.Fatalf("Expected %d Start() calls, got %d", len(expectedSteps), len(fakeLogger.startCalls))
+	}
+
+	for i, expected := range expectedSteps {
+		actual := fakeLogger.startCalls[i]
+		if actual.inProgress != expected.inProgress {
+			t.Errorf("Step %d: expected inProgress %q, got %q", i, expected.inProgress, actual.inProgress)
+		}
+		if actual.completed != expected.completed {
+			t.Errorf("Step %d: expected completed %q, got %q", i, expected.completed, actual.completed)
+		}
+	}
+}
+
+func TestRemove_StepLogger_ContainerNotFound(t *testing.T) {
+	t.Parallel()
+
+	containerID := "abc123"
+	fakeExec := exec.NewFake()
+
+	// Set up OutputFunc to return a "not found" error
+	fakeExec.OutputFunc = func(ctx context.Context, args ...string) ([]byte, error) {
+		return nil, fmt.Errorf("no such container: %s", containerID)
+	}
+
+	p := newWithDeps(&fakeSystem{}, fakeExec).(*podmanRuntime)
+
+	fakeLogger := &fakeStepLogger{}
+	ctx := steplogger.WithLogger(context.Background(), fakeLogger)
+
+	err := p.Remove(ctx, containerID)
+	if err != nil {
+		t.Fatalf("Remove() should be idempotent for not found, got error: %v", err)
+	}
+
+	// Verify Complete was called once (deferred call)
+	if fakeLogger.completeCalls != 1 {
+		t.Errorf("Expected Complete() to be called 1 time, got %d", fakeLogger.completeCalls)
+	}
+
+	// Verify Start was called once (checking container state)
+	if len(fakeLogger.startCalls) != 1 {
+		t.Fatalf("Expected 1 Start() call, got %d", len(fakeLogger.startCalls))
+	}
+
+	if fakeLogger.startCalls[0].inProgress != "Checking container state" {
+		t.Errorf("Expected first step to be 'Checking container state', got %q", fakeLogger.startCalls[0].inProgress)
+	}
+
+	// Verify no Fail calls (idempotent operation)
+	if len(fakeLogger.failCalls) != 0 {
+		t.Errorf("Expected no Fail() calls for not found (idempotent), got %d", len(fakeLogger.failCalls))
+	}
+}
+
+func TestRemove_StepLogger_FailOnGetContainerInfo(t *testing.T) {
+	t.Parallel()
+
+	containerID := "abc123"
+	fakeExec := exec.NewFake()
+
+	// Set up OutputFunc to return malformed output (not an error that matches isNotFoundError)
+	// This will cause getContainerInfo to fail with a parsing error
+	fakeExec.OutputFunc = func(ctx context.Context, args ...string) ([]byte, error) {
+		return []byte("invalid|output"), nil
+	}
+
+	p := newWithDeps(&fakeSystem{}, fakeExec).(*podmanRuntime)
+
+	fakeLogger := &fakeStepLogger{}
+	ctx := steplogger.WithLogger(context.Background(), fakeLogger)
+
+	err := p.Remove(ctx, containerID)
+	if err == nil {
+		t.Fatal("Expected Remove() to fail, got nil")
+	}
+
+	// Verify Complete was called once (deferred call)
+	if fakeLogger.completeCalls != 1 {
+		t.Errorf("Expected Complete() to be called 1 time, got %d", fakeLogger.completeCalls)
+	}
+
+	// Verify Start was called once (checking container state)
+	if len(fakeLogger.startCalls) != 1 {
+		t.Fatalf("Expected 1 Start() call, got %d", len(fakeLogger.startCalls))
+	}
+
+	if fakeLogger.startCalls[0].inProgress != "Checking container state" {
+		t.Errorf("Expected first step to be 'Checking container state', got %q", fakeLogger.startCalls[0].inProgress)
+	}
+
+	// Verify Fail was called once
+	if len(fakeLogger.failCalls) != 1 {
+		t.Fatalf("Expected 1 Fail() call, got %d", len(fakeLogger.failCalls))
+	}
+
+	if fakeLogger.failCalls[0] == nil {
+		t.Error("Expected Fail() to be called with non-nil error")
+	}
+}
+
+func TestRemove_StepLogger_FailOnRunningContainer(t *testing.T) {
+	t.Parallel()
+
+	containerID := "abc123"
+	fakeExec := exec.NewFake()
+
+	// Set up OutputFunc to return a running container
+	fakeExec.OutputFunc = func(ctx context.Context, args ...string) ([]byte, error) {
+		output := fmt.Sprintf("%s|running|kortex-cli-test\n", containerID)
+		return []byte(output), nil
+	}
+
+	p := newWithDeps(&fakeSystem{}, fakeExec).(*podmanRuntime)
+
+	fakeLogger := &fakeStepLogger{}
+	ctx := steplogger.WithLogger(context.Background(), fakeLogger)
+
+	err := p.Remove(ctx, containerID)
+	if err == nil {
+		t.Fatal("Expected Remove() to fail for running container, got nil")
+	}
+
+	// Verify Complete was called once (deferred call)
+	if fakeLogger.completeCalls != 1 {
+		t.Errorf("Expected Complete() to be called 1 time, got %d", fakeLogger.completeCalls)
+	}
+
+	// Verify Start was called once (checking container state)
+	if len(fakeLogger.startCalls) != 1 {
+		t.Fatalf("Expected 1 Start() call, got %d", len(fakeLogger.startCalls))
+	}
+
+	if fakeLogger.startCalls[0].inProgress != "Checking container state" {
+		t.Errorf("Expected first step to be 'Checking container state', got %q", fakeLogger.startCalls[0].inProgress)
+	}
+
+	// Verify Fail was called once
+	if len(fakeLogger.failCalls) != 1 {
+		t.Fatalf("Expected 1 Fail() call, got %d", len(fakeLogger.failCalls))
+	}
+
+	if fakeLogger.failCalls[0] == nil {
+		t.Error("Expected Fail() to be called with non-nil error")
+	}
+}
+
+func TestRemove_StepLogger_FailOnRemoveContainer(t *testing.T) {
+	t.Parallel()
+
+	containerID := "abc123"
+	fakeExec := exec.NewFake()
+
+	// Set up OutputFunc to return stopped container info
+	fakeExec.OutputFunc = func(ctx context.Context, args ...string) ([]byte, error) {
+		output := fmt.Sprintf("%s|exited|kortex-cli-test\n", containerID)
+		return []byte(output), nil
+	}
+
+	// Set up RunFunc to fail on remove
+	fakeExec.RunFunc = func(ctx context.Context, args ...string) error {
+		if len(args) > 0 && args[0] == "rm" {
+			return fmt.Errorf("failed to remove container")
+		}
+		return nil
+	}
+
+	p := newWithDeps(&fakeSystem{}, fakeExec).(*podmanRuntime)
+
+	fakeLogger := &fakeStepLogger{}
+	ctx := steplogger.WithLogger(context.Background(), fakeLogger)
+
+	err := p.Remove(ctx, containerID)
+	if err == nil {
+		t.Fatal("Expected Remove() to fail, got nil")
+	}
+
+	// Verify Complete was called once (deferred call)
+	if fakeLogger.completeCalls != 1 {
+		t.Errorf("Expected Complete() to be called 1 time, got %d", fakeLogger.completeCalls)
+	}
+
+	// Verify Start was called twice (checking state, removing container)
+	if len(fakeLogger.startCalls) != 2 {
+		t.Fatalf("Expected 2 Start() calls, got %d", len(fakeLogger.startCalls))
+	}
+
+	expectedSteps := []string{
+		"Checking container state",
+		"Removing container: abc123",
+	}
+
+	for i, expected := range expectedSteps {
+		if fakeLogger.startCalls[i].inProgress != expected {
+			t.Errorf("Step %d: expected %q, got %q", i, expected, fakeLogger.startCalls[i].inProgress)
+		}
+	}
+
+	// Verify Fail was called once
+	if len(fakeLogger.failCalls) != 1 {
+		t.Fatalf("Expected 1 Fail() call, got %d", len(fakeLogger.failCalls))
+	}
+
+	if fakeLogger.failCalls[0] == nil {
+		t.Error("Expected Fail() to be called with non-nil error")
+	}
 }

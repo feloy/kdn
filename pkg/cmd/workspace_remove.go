@@ -27,6 +27,7 @@ import (
 	api "github.com/kortex-hub/kortex-cli-api/cli/go"
 	"github.com/kortex-hub/kortex-cli/pkg/instances"
 	"github.com/kortex-hub/kortex-cli/pkg/runtimesetup"
+	"github.com/kortex-hub/kortex-cli/pkg/steplogger"
 	"github.com/spf13/cobra"
 )
 
@@ -83,8 +84,21 @@ func (w *workspaceRemoveCmd) preRun(cmd *cobra.Command, args []string) error {
 
 // run executes the workspace remove command logic
 func (w *workspaceRemoveCmd) run(cmd *cobra.Command, args []string) error {
+	// Create appropriate logger based on output mode
+	var logger steplogger.StepLogger
+	if w.output == "json" {
+		// No step logging in JSON mode
+		logger = steplogger.NewNoOpLogger()
+	} else {
+		logger = steplogger.NewTextLogger(cmd.ErrOrStderr())
+	}
+	defer logger.Complete()
+
+	// Attach logger to context
+	ctx := steplogger.WithLogger(cmd.Context(), logger)
+
 	// Delete the instance
-	err := w.manager.Delete(cmd.Context(), w.id)
+	err := w.manager.Delete(ctx, w.id)
 	if err != nil {
 		if errors.Is(err, instances.ErrInstanceNotFound) {
 			if w.output == "json" {

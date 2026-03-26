@@ -19,23 +19,31 @@ import (
 	"fmt"
 
 	"github.com/kortex-hub/kortex-cli/pkg/runtime"
+	"github.com/kortex-hub/kortex-cli/pkg/steplogger"
 )
 
 // Start starts a previously created Podman container.
 func (p *podmanRuntime) Start(ctx context.Context, id string) (runtime.RuntimeInfo, error) {
+	logger := steplogger.FromContext(ctx)
+	defer logger.Complete()
+
 	// Validate the ID parameter
 	if id == "" {
 		return runtime.RuntimeInfo{}, fmt.Errorf("%w: container ID is required", runtime.ErrInvalidParams)
 	}
 
 	// Start the container
+	logger.Start(fmt.Sprintf("Starting container: %s", id), "Container started")
 	if err := p.startContainer(ctx, id); err != nil {
+		logger.Fail(err)
 		return runtime.RuntimeInfo{}, err
 	}
 
 	// Get updated container information
+	logger.Start("Verifying container status", "Container status verified")
 	info, err := p.getContainerInfo(ctx, id)
 	if err != nil {
+		logger.Fail(err)
 		return runtime.RuntimeInfo{}, fmt.Errorf("failed to get container info after start: %w", err)
 	}
 
