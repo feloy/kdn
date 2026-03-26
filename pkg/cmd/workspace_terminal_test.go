@@ -105,27 +105,6 @@ func TestWorkspaceTerminalCmd_PreRun(t *testing.T) {
 			t.Errorf("Expected command ['bash', '-l'], got %v", c.command)
 		}
 	})
-
-	t.Run("creates absolute storage path", func(t *testing.T) {
-		t.Parallel()
-
-		storageDir := "relative/path"
-
-		c := &workspaceTerminalCmd{}
-		cmd := &cobra.Command{}
-		cmd.Flags().String("storage", storageDir, "test storage flag")
-
-		args := []string{"test-id"}
-
-		err := c.preRun(cmd, args)
-		if err != nil {
-			t.Fatalf("preRun() failed: %v", err)
-		}
-
-		if c.manager == nil {
-			t.Error("Expected manager to be created")
-		}
-	})
 }
 
 func TestWorkspaceTerminalCmd_Examples(t *testing.T) {

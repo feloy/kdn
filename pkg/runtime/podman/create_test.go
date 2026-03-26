@@ -1068,6 +1068,10 @@ func (f *fakeExecutor) Output(ctx context.Context, args ...string) ([]byte, erro
 	return f.output, nil
 }
 
+func (f *fakeExecutor) RunInteractive(ctx context.Context, args ...string) error {
+	return f.runErr
+}
+
 // assertDirectoryRemoved checks that a directory has been removed.
 // On Windows, file locks may delay cleanup, so this retries with a timeout.
 func assertDirectoryRemoved(t *testing.T, dir string) {
