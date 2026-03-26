@@ -647,7 +647,11 @@ func TestCreate_StepLogger_Success(t *testing.T) {
 	}
 
 	p := newWithDeps(&fakeSystem{}, fakeExec).(*podmanRuntime)
-	p.storageDir = storageDir
+
+	// Initialize the runtime with storage
+	if err := p.Initialize(storageDir); err != nil {
+		t.Fatalf("Initialize() failed: %v", err)
+	}
 
 	fakeLogger := &fakeStepLogger{}
 	ctx := steplogger.WithLogger(context.Background(), fakeLogger)
@@ -721,6 +725,7 @@ func TestCreate_StepLogger_FailOnCreateInstanceDirectory(t *testing.T) {
 		system:     &fakeSystem{},
 		executor:   exec.NewFake(),
 		storageDir: notADir, // Will fail when trying to create subdirectory
+		config:     &fakeConfig{},
 	}
 
 	fakeLogger := &fakeStepLogger{}
@@ -777,6 +782,7 @@ func TestCreate_StepLogger_FailOnCreateContainerfile(t *testing.T) {
 		system:     &fakeSystem{},
 		executor:   exec.NewFake(),
 		storageDir: storageDir,
+		config:     &fakeConfig{},
 	}
 
 	fakeLogger := &fakeStepLogger{}
@@ -839,7 +845,11 @@ func TestCreate_StepLogger_FailOnBuildImage(t *testing.T) {
 	}
 
 	p := newWithDeps(&fakeSystem{}, fakeExec).(*podmanRuntime)
-	p.storageDir = storageDir
+
+	// Initialize the runtime with storage
+	if err := p.Initialize(storageDir); err != nil {
+		t.Fatalf("Initialize() failed: %v", err)
+	}
 
 	fakeLogger := &fakeStepLogger{}
 	ctx := steplogger.WithLogger(context.Background(), fakeLogger)
@@ -905,7 +915,11 @@ func TestCreate_StepLogger_FailOnCreateContainer(t *testing.T) {
 	}
 
 	p := newWithDeps(&fakeSystem{}, fakeExec).(*podmanRuntime)
-	p.storageDir = storageDir
+
+	// Initialize the runtime with storage
+	if err := p.Initialize(storageDir); err != nil {
+		t.Fatalf("Initialize() failed: %v", err)
+	}
 
 	fakeLogger := &fakeStepLogger{}
 	ctx := steplogger.WithLogger(context.Background(), fakeLogger)
