@@ -84,10 +84,6 @@ plugins:
       htmlmin_opts:
         remove_comments: true
       cache_safe: true
-  - git-revision-date-localized:
-      enable_creation_date: true
-      type: timeago
-      fallback_to_build_date: true
 
 # Markdown extensions for better rendering
 markdown_extensions:
