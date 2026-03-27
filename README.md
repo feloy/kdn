@@ -23,7 +23,7 @@ kortex-cli is a command-line interface for launching and managing AI agents with
 
 ### Prerequisites
 
-- Go 1.25+
+- Go 1.26+
 - Make
 
 ### Build

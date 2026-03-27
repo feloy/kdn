@@ -1738,7 +1738,7 @@ All source files must include Apache License 2.0 copyright headers with Red Hat 
 ## Dependencies
 
 - Cobra (github.com/spf13/cobra): CLI framework
-- Go 1.25+
+- Go 1.26+
 
 ## Testing
 

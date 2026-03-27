@@ -1,6 +1,6 @@
 module github.com/kortex-hub/kortex-cli
 
-go 1.25.7
+go 1.26.1
 
 require (
 	github.com/kortex-hub/kortex-cli-api/cli/go v0.0.0-20260326121446-aa3f0c37fc1e
