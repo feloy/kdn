@@ -339,6 +339,70 @@ func TestMerger_Merge_Mounts(t *testing.T) {
 		}
 	})
 
+	t.Run("override updates ro for same host+target", func(t *testing.T) {
+		t.Parallel()
+
+		roTrue := true
+		base := &workspace.WorkspaceConfiguration{
+			Mounts: &[]workspace.Mount{
+				{Host: "/host/dep1", Target: "/workspace/dep1"},
+				{Host: "/host/dep2", Target: "/workspace/dep2"},
+			},
+		}
+
+		override := &workspace.WorkspaceConfiguration{
+			Mounts: &[]workspace.Mount{
+				{Host: "/host/dep2", Target: "/workspace/dep2", Ro: &roTrue},
+			},
+		}
+
+		result := merger.Merge(base, override)
+
+		mounts := *result.Mounts
+		if len(mounts) != 2 {
+			t.Fatalf("Expected 2 mounts, got %d", len(mounts))
+		}
+
+		// dep2 must stay at index 1 (base position) but have ro=true from override
+		if mounts[1].Host != "/host/dep2" {
+			t.Errorf("Expected dep2 at index 1, got %s", mounts[1].Host)
+		}
+		if mounts[1].Ro == nil || !*mounts[1].Ro {
+			t.Error("Expected ro=true on dep2 from override")
+		}
+
+		// Verify the original base is not mutated
+		baseMounts := *base.Mounts
+		if baseMounts[1].Ro != nil {
+			t.Error("Expected base dep2 Ro to remain nil (no mutation)")
+		}
+	})
+
+	t.Run("ro pointer is not shared after merge", func(t *testing.T) {
+		t.Parallel()
+
+		roTrue := true
+		base := &workspace.WorkspaceConfiguration{
+			Mounts: &[]workspace.Mount{
+				{Host: "/host/dep1", Target: "/workspace/dep1", Ro: &roTrue},
+			},
+		}
+
+		result := merger.Merge(base, nil)
+
+		mounts := *result.Mounts
+		if mounts[0].Ro == nil || !*mounts[0].Ro {
+			t.Fatal("Expected ro=true in copy")
+		}
+
+		// Mutate the copy — base must not be affected
+		roFalse := false
+		mounts[0].Ro = &roFalse
+		if !*(*base.Mounts)[0].Ro {
+			t.Error("Base Ro was mutated through shared pointer")
+		}
+	})
+
 	t.Run("empty slices return nil", func(t *testing.T) {
 		t.Parallel()
 

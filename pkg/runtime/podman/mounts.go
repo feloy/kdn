@@ -24,6 +24,10 @@ import (
 	"github.com/kortex-hub/kortex-cli/pkg/runtime/podman/constants"
 )
 
+// NOTE: Mount target escape validation ($SOURCES/../../etc) is enforced at config
+// load time in pkg/config/config.go. The Podman runtime trusts that mounts have
+// already been validated and does not re-check here.
+
 // containerWorkspaceSources is the mount point for the sources directory inside the container.
 var containerWorkspaceSources = path.Join("/workspace", "sources")
 
@@ -56,34 +60,6 @@ func resolveTargetPath(target string) string {
 	default:
 		return path.Clean(target)
 	}
-}
-
-// isWithinRoot returns true if resolved is equal to root or is a direct descendant.
-func isWithinRoot(resolved, root string) bool {
-	suffix := strings.TrimPrefix(resolved, root)
-	// TrimPrefix returns the original string unchanged when the prefix is absent,
-	// so suffix == resolved means resolved does not start with root.
-	return suffix != resolved && (suffix == "" || strings.HasPrefix(suffix, "/"))
-}
-
-// validateMount checks that a mount's resolved target path does not escape its
-// expected root directory inside the container.
-//
-// Rules:
-//   - $SOURCES-based targets must remain within /workspace
-//   - $HOME-based targets must remain within /home/<containerUser>
-//   - Absolute targets are accepted as-is
-func validateMount(m workspace.Mount) error {
-	if strings.HasPrefix(m.Target, "$SOURCES") {
-		if !isWithinRoot(resolveTargetPath(m.Target), "/workspace") {
-			return fmt.Errorf("mount target %q escapes above /workspace", m.Target)
-		}
-	} else if strings.HasPrefix(m.Target, "$HOME") {
-		if !isWithinRoot(resolveTargetPath(m.Target), containerHome) {
-			return fmt.Errorf("mount target %q escapes above %s", m.Target, containerHome)
-		}
-	}
-	return nil
 }
 
 // mountVolumeArg builds the podman -v argument string for a mount.

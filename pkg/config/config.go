@@ -80,6 +80,32 @@ func isValidTargetPath(p string) bool {
 	return path.IsAbs(p) || strings.HasPrefix(p, "$SOURCES") || strings.HasPrefix(p, "$HOME")
 }
 
+// mountTargetWithinRoot returns true if resolved is equal to root or is a direct descendant.
+func mountTargetWithinRoot(resolved, root string) bool {
+	suffix := strings.TrimPrefix(resolved, root)
+	return suffix != resolved && (suffix == "" || strings.HasPrefix(suffix, "/"))
+}
+
+// checkTargetEscape returns an error if a $SOURCES or $HOME target escapes above its root.
+// $SOURCES targets must stay within /workspace; $HOME targets must not escape above $HOME itself.
+func checkTargetEscape(target string) error {
+	switch {
+	case strings.HasPrefix(target, "$SOURCES"):
+		resolved := path.Join("/workspace/sources", target[len("$SOURCES"):])
+		if !mountTargetWithinRoot(resolved, "/workspace") {
+			return fmt.Errorf("mount target %q escapes above $SOURCES", target)
+		}
+	case strings.HasPrefix(target, "$HOME"):
+		// Use a fixed placeholder home; the check is relative so the actual user name does not matter.
+		const placeholderHome = "/home/user"
+		resolved := path.Join(placeholderHome, target[len("$HOME"):])
+		if !mountTargetWithinRoot(resolved, placeholderHome) {
+			return fmt.Errorf("mount target %q escapes above $HOME", target)
+		}
+	}
+	return nil
+}
+
 // validate checks that the configuration is valid.
 // It ensures that environment variables have exactly one of value or secret defined,
 // that secret references are not empty, that names are valid Unix environment variable names,
@@ -138,6 +164,9 @@ func (c *config) validate(cfg *workspace.WorkspaceConfiguration) error {
 			}
 			if !isValidTargetPath(m.Target) {
 				return fmt.Errorf("%w: mount target %q (index %d) must be a Unix absolute path or start with $SOURCES or $HOME", ErrInvalidConfig, m.Target, i)
+			}
+			if err := checkTargetEscape(m.Target); err != nil {
+				return fmt.Errorf("%w: %s (index %d)", ErrInvalidConfig, err, i)
 			}
 		}
 	}

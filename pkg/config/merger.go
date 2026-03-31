@@ -112,25 +112,40 @@ func mergeEnvironment(base, override *[]workspace.EnvironmentVariable) *[]worksp
 	return &result
 }
 
-// mergeMounts merges mount slices, deduplicating by host+target pair
+// deepCopyMount returns a deep copy of m with the Ro pointer independent from the original.
+func deepCopyMount(m workspace.Mount) workspace.Mount {
+	if m.Ro != nil {
+		roCopy := *m.Ro
+		m.Ro = &roCopy
+	}
+	return m
+}
+
+// mergeMounts merges mount slices, deduplicating by host+target pair.
+// Mounts from base are appended first; if override contains a mount with the same
+// host+target key, it replaces the base entry in-place (preserving position) so that
+// per-mount fields such as Ro are correctly overridden.
 func mergeMounts(base, override *[]workspace.Mount) *[]workspace.Mount {
 	if base == nil && override == nil {
 		return nil
 	}
 
 	type mountKey struct{ host, target string }
-	seen := make(map[mountKey]bool)
+	seen := make(map[mountKey]int) // value is index in result
 	var result []workspace.Mount
 
 	for _, slice := range []*[]workspace.Mount{base, override} {
 		if slice == nil {
 			continue
 		}
+		isOverride := slice == override
 		for _, m := range *slice {
 			key := mountKey{m.Host, m.Target}
-			if !seen[key] {
-				seen[key] = true
-				result = append(result, m)
+			if idx, exists := seen[key]; !exists {
+				seen[key] = len(result)
+				result = append(result, deepCopyMount(m))
+			} else if isOverride {
+				result[idx] = deepCopyMount(m)
 			}
 		}
 	}
@@ -157,10 +172,12 @@ func copyConfig(cfg *workspace.WorkspaceConfiguration) *workspace.WorkspaceConfi
 		result.Environment = &envCopy
 	}
 
-	// Copy mounts
+	// Copy mounts (deep copy each entry so Ro pointers are independent)
 	if cfg.Mounts != nil {
 		mountsCopy := make([]workspace.Mount, len(*cfg.Mounts))
-		copy(mountsCopy, *cfg.Mounts)
+		for i, m := range *cfg.Mounts {
+			mountsCopy[i] = deepCopyMount(m)
+		}
 		result.Mounts = &mountsCopy
 	}
 

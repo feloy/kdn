@@ -95,21 +95,6 @@ func TestValidateCreateParams(t *testing.T) {
 			},
 			expectError: false,
 		},
-		{
-			name: "invalid mount - $SOURCES target escapes above /workspace",
-			params: runtime.CreateParams{
-				Name:       "test-workspace",
-				SourcePath: tempSourcePath,
-				Agent:      "test_agent",
-				WorkspaceConfig: &workspace.WorkspaceConfiguration{
-					Mounts: &[]workspace.Mount{
-						{Host: "/host/path", Target: "$SOURCES/../../etc"},
-					},
-				},
-			},
-			expectError: true,
-			errorType:   runtime.ErrInvalidParams,
-		},
 	}
 
 	for _, tt := range tests {

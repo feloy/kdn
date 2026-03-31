@@ -958,6 +958,78 @@ func TestConfig_Load(t *testing.T) {
 		}
 	})
 
+	t.Run("rejects $SOURCES target that escapes above /workspace", func(t *testing.T) {
+		t.Parallel()
+
+		tempDir := t.TempDir()
+		configDir := filepath.Join(tempDir, ".kortex")
+
+		err := os.MkdirAll(configDir, 0755)
+		if err != nil {
+			t.Fatalf("os.MkdirAll() failed: %v", err)
+		}
+
+		workspaceJSON := fmt.Sprintf(`{
+  "mounts": [
+    {"host": "%s", "target": "$SOURCES/../../etc"}
+  ]
+}`, filepath.ToSlash(tempDir))
+		workspacePath := filepath.Join(configDir, WorkspaceConfigFile)
+		err = os.WriteFile(workspacePath, []byte(workspaceJSON), 0644)
+		if err != nil {
+			t.Fatalf("os.WriteFile() failed: %v", err)
+		}
+
+		cfg, err := NewConfig(configDir)
+		if err != nil {
+			t.Fatalf("NewConfig() failed: %v", err)
+		}
+
+		_, err = cfg.Load()
+		if err == nil {
+			t.Fatal("Expected error for escaping $SOURCES target, got nil")
+		}
+		if !errors.Is(err, ErrInvalidConfig) {
+			t.Errorf("Expected ErrInvalidConfig, got %v", err)
+		}
+	})
+
+	t.Run("rejects $HOME target that escapes above $HOME", func(t *testing.T) {
+		t.Parallel()
+
+		tempDir := t.TempDir()
+		configDir := filepath.Join(tempDir, ".kortex")
+
+		err := os.MkdirAll(configDir, 0755)
+		if err != nil {
+			t.Fatalf("os.MkdirAll() failed: %v", err)
+		}
+
+		workspaceJSON := fmt.Sprintf(`{
+  "mounts": [
+    {"host": "%s", "target": "$HOME/../other-user"}
+  ]
+}`, filepath.ToSlash(tempDir))
+		workspacePath := filepath.Join(configDir, WorkspaceConfigFile)
+		err = os.WriteFile(workspacePath, []byte(workspaceJSON), 0644)
+		if err != nil {
+			t.Fatalf("os.WriteFile() failed: %v", err)
+		}
+
+		cfg, err := NewConfig(configDir)
+		if err != nil {
+			t.Fatalf("NewConfig() failed: %v", err)
+		}
+
+		_, err = cfg.Load()
+		if err == nil {
+			t.Fatal("Expected error for escaping $HOME target, got nil")
+		}
+		if !errors.Is(err, ErrInvalidConfig) {
+			t.Errorf("Expected ErrInvalidConfig, got %v", err)
+		}
+	})
+
 	t.Run("accepts valid mount paths", func(t *testing.T) {
 		t.Parallel()
 

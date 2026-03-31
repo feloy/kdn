@@ -39,15 +39,6 @@ func (p *podmanRuntime) validateCreateParams(params runtime.CreateParams) error 
 		return fmt.Errorf("%w: agent is required", runtime.ErrInvalidParams)
 	}
 
-	// Validate mount targets don't escape their expected container root
-	if params.WorkspaceConfig != nil && params.WorkspaceConfig.Mounts != nil {
-		for _, m := range *params.WorkspaceConfig.Mounts {
-			if err := validateMount(m); err != nil {
-				return fmt.Errorf("%w: %v", runtime.ErrInvalidParams, err)
-			}
-		}
-	}
-
 	return nil
 }
 
