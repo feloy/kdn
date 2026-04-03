@@ -280,7 +280,7 @@ Create or edit `~/.kortex-cli/config/agents.json`:
       }
     ],
     "mounts": [
-      {"host": "$HOME/.config/gcloud", "target": "$HOME/.config/gcloud"}
+      {"host": "$HOME/.config/gcloud", "target": "$HOME/.config/gcloud", "ro": true}
     ]
   }
 }
@@ -325,7 +325,7 @@ Edit `~/.kortex-cli/config/agents.json` to add the mount alongside the Vertex AI
       }
     ],
     "mounts": [
-      {"host": "$HOME/.config/gcloud", "target": "$HOME/.config/gcloud"},
+      {"host": "$HOME/.config/gcloud", "target": "$HOME/.config/gcloud", "ro": true},
       {"host": "$HOME/.config/goose", "target": "$HOME/.config/goose"}
     ]
   }
