@@ -186,7 +186,19 @@ To reuse your host Claude Code settings (preferences, custom instructions, etc.)
 
 ### Starting Claude with Default Settings
 
-This scenario demonstrates how to pre-configure Claude Code's settings so that when it starts inside a workspace, it skips the interactive onboarding flow (theme selection, trusted folder prompt, etc.) and uses your preferred defaults. This is useful when you want a consistent, ready-to-use Claude experience without sharing your local `~/.claude` directory.
+This scenario demonstrates how to pre-configure Claude Code's settings so that when it starts inside a workspace, it skips the interactive onboarding flow and uses your preferred defaults. kortex-cli automatically handles the onboarding flags, and you can optionally customize other settings like theme preferences.
+
+**Automatic Onboarding Skip**
+
+When you register a workspace with the Claude agent, kortex-cli automatically:
+- Sets `hasCompletedOnboarding: true` to skip the first-run wizard
+- Sets `hasTrustDialogAccepted: true` for the workspace sources directory (`/workspace/sources`)
+
+This happens automatically for every Claude workspace — no manual configuration required.
+
+**Optional: Customize Theme and Other Settings**
+
+If you want to customize Claude's theme or other preferences, create default settings:
 
 **Step 1: Create the agent settings directory**
 
@@ -199,13 +211,7 @@ mkdir -p ~/.kortex-cli/config/claude
 ```bash
 cat > ~/.kortex-cli/config/claude/.claude.json << 'EOF'
 {
-  "theme": "dark-daltonized",
-  "hasCompletedOnboarding": true,
-  "projects": {
-    "/workspace/sources": {
-      "hasTrustDialogAccepted": true
-    }
-  }
+  "theme": "dark-daltonized"
 }
 EOF
 ```
@@ -213,8 +219,8 @@ EOF
 **Fields:**
 
 - `theme` - The UI theme for Claude Code (e.g., `"dark"`, `"light"`, `"dark-daltonized"`)
-- `hasCompletedOnboarding` - Set to `true` to skip the first-run onboarding wizard
-- `projects["/workspace/sources"].hasTrustDialogAccepted` - Pre-accepts the trust dialog for the workspace sources directory, which is always mounted at `/workspace/sources` inside the container
+
+You don't need to set `hasCompletedOnboarding` or `hasTrustDialogAccepted` — kortex-cli adds these automatically when creating the workspace.
 
 **Step 3: Register and start the workspace**
 
@@ -229,10 +235,16 @@ kortex-cli start my-project
 kortex-cli terminal my-project
 ```
 
-When `init` runs, kortex-cli reads all files from `~/.kortex-cli/config/claude/` and copies them into the container image at `/home/agent/`, so `.claude.json` lands at `/home/agent/.claude.json`. Claude Code finds this file on startup and skips onboarding.
+When `init` runs, kortex-cli:
+1. Reads all files from `~/.kortex-cli/config/claude/` (e.g., your theme preferences)
+2. Automatically adds `hasCompletedOnboarding: true` and marks `/workspace/sources` as trusted
+3. Copies the final merged settings into the container image at `/home/agent/.claude.json`
+
+Claude Code finds this file on startup and skips onboarding.
 
 **Notes:**
 
+- **Onboarding is skipped automatically** — even if you don't create any settings files, kortex-cli ensures Claude starts without prompts
 - The settings are baked into the container image at `init` time, not mounted at runtime — changes to the files on the host require re-registering the workspace to take effect
 - Any file placed under `~/.kortex-cli/config/claude/` is copied into the container home directory, preserving the directory structure (e.g., `~/.kortex-cli/config/claude/.some-tool/config` becomes `/home/agent/.some-tool/config` inside the container)
 - This approach keeps your workspace self-contained — other developers using the same project are not affected, and your local `~/.claude` directory is not exposed inside the container
@@ -1329,8 +1341,9 @@ User-specific configurations are stored in the kortex-cli storage directory:
 - **Custom location**: Set via `--storage` flag or `KORTEX_CLI_STORAGE` environment variable
 
 The storage directory contains:
-- `config/agents.json` - Agent-specific configurations
-- `config/projects.json` - Project-specific and global configurations
+- `config/agents.json` - Agent-specific environment variables and mounts
+- `config/projects.json` - Project-specific and global environment variables and mounts
+- `config/<agent>/` - Agent default settings files (e.g., `config/claude/.claude.json`)
 
 ### Agent Configuration File
 

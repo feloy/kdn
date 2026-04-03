@@ -32,6 +32,10 @@ func (f *fakeRuntime) Type() string {
 	return f.typeID
 }
 
+func (f *fakeRuntime) WorkspaceSourcesPath() string {
+	return "/workspace/sources"
+}
+
 func (f *fakeRuntime) Create(ctx context.Context, params CreateParams) (RuntimeInfo, error) {
 	return RuntimeInfo{}, nil
 }
@@ -348,6 +352,10 @@ type storageAwareRuntime struct {
 
 func (s *storageAwareRuntime) Type() string {
 	return s.typeID
+}
+
+func (s *storageAwareRuntime) WorkspaceSourcesPath() string {
+	return "/workspace/sources"
 }
 
 func (s *storageAwareRuntime) Create(ctx context.Context, params CreateParams) (RuntimeInfo, error) {

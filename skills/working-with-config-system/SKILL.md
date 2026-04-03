@@ -44,7 +44,18 @@ This is distinct from `agents.json`:
 - `agents.json` — injects **environment variables and mounts** at runtime
 - `config/<agent>/` — embeds **dotfiles / settings files** directly into the image at build time
 
-**Implementation:** `manager.readAgentSettings(storageDir, agentName)` in `pkg/instances/manager.go` walks this directory and returns a `map[string][]byte` (relative forward-slash path → content). The map is passed to the runtime via `runtime.CreateParams.AgentSettings`. The Podman runtime writes the files into the build context and adds a `COPY --chown=agent:agent agent-settings/. /home/agent/` instruction to the Containerfile.
+**Automatic Onboarding Configuration:**
+
+For supported agents (e.g., Claude), kortex-cli automatically modifies settings files to skip onboarding prompts:
+
+1. Files are read from `config/<agent>/` (e.g., `config/claude/.claude.json`)
+2. If the agent is registered, its `SkipOnboarding()` method is called
+3. The agent automatically adds necessary flags (e.g., `hasCompletedOnboarding`, `hasTrustDialogAccepted`)
+4. Modified settings are embedded into the container image
+
+This means you can optionally customize agent preferences (theme, etc.) in the settings files, and kortex-cli will automatically add the onboarding flags.
+
+**Implementation:** `manager.readAgentSettings(storageDir, agentName)` in `pkg/instances/manager.go` walks this directory and returns a `map[string][]byte` (relative forward-slash path → content). If the agent is registered in the agent registry, the manager calls the agent's `SkipOnboarding()` method to modify the settings. The final map is passed to the runtime via `runtime.CreateParams.AgentSettings`. The Podman runtime writes the files into the build context and adds a `COPY --chown=agent:agent agent-settings/. /home/agent/` instruction to the Containerfile.
 
 ## Key Components
 

@@ -88,3 +88,8 @@ func (p *podmanRuntime) Initialize(storageDir string) error {
 func (p *podmanRuntime) Type() string {
 	return "podman"
 }
+
+// WorkspaceSourcesPath returns the path where sources are mounted inside the workspace.
+func (p *podmanRuntime) WorkspaceSourcesPath() string {
+	return containerWorkspaceSources
+}

@@ -166,6 +166,11 @@ func (f *fakeRuntime) Type() string {
 	return "fake"
 }
 
+// WorkspaceSourcesPath returns the path where sources are mounted inside the workspace.
+func (f *fakeRuntime) WorkspaceSourcesPath() string {
+	return "/project/sources"
+}
+
 // Create creates a new fake runtime instance.
 func (f *fakeRuntime) Create(ctx context.Context, params runtime.CreateParams) (runtime.RuntimeInfo, error) {
 	if params.Name == "" {

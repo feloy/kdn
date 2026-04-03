@@ -16,6 +16,7 @@ The instances manager handles:
 - Starting and stopping instances via runtimes
 - Project detection and grouping
 - Configuration merging (workspace, project, agent configs)
+- Agent settings files and automatic onboarding configuration
 - Interactive terminal sessions with running instances
 
 ## Creating the Manager
@@ -63,7 +64,8 @@ The `Add()` method:
 3. Loads agent config (if agent name provided)
 4. Merges configs: workspace → global → project → agent
 5. Reads agent settings files from `<storage-dir>/config/<agent>/` into `map[string][]byte`
-6. Passes merged config and agent settings to runtime for injection into workspace
+6. Calls agent's `SkipOnboarding()` method if agent is registered (e.g., Claude agent automatically sets onboarding flags)
+7. Passes merged config and modified agent settings to runtime for injection into workspace
 
 ### List - Get All Instances
 
@@ -270,6 +272,74 @@ func (w *workspaceTerminalCmd) run(cmd *cobra.Command, args []string) error {
 }
 ```
 
+## Agent Registry and Automatic Onboarding
+
+The manager integrates with the agent registry to provide automatic onboarding configuration for supported agents.
+
+### Registering Agents
+
+Register all available agents using the centralized registration:
+
+```go
+import "github.com/kortex-hub/kortex-cli/pkg/agentsetup"
+
+// In preRun or initialization code
+if err := agentsetup.RegisterAll(manager); err != nil {
+    return fmt.Errorf("failed to register agents: %w", err)
+}
+```
+
+This registers all available agents (e.g., Claude) with the manager's agent registry.
+
+### Automatic Agent Onboarding
+
+When adding an instance with an agent name, the manager automatically:
+
+1. **Reads agent settings files** from `<storage-dir>/config/<agent>/` (e.g., `config/claude/.claude.json`)
+2. **Looks up the agent** in the registry by name
+3. **Calls `SkipOnboarding()`** if the agent is registered, passing:
+   - Current agent settings map (file paths → content)
+   - Workspace sources path from the runtime (e.g., `/workspace/sources`)
+4. **Receives modified settings** with onboarding flags automatically set
+
+**Example - Claude Agent:**
+
+For the Claude agent, `SkipOnboarding()` automatically:
+- Sets `hasCompletedOnboarding: true` to skip the first-run wizard
+- Adds `hasTrustDialogAccepted: true` for the workspace sources directory
+- Preserves any custom settings you've configured (theme, preferences, etc.)
+
+**Graceful Fallback:**
+
+If an agent name is provided but not registered:
+- Settings files are read as-is
+- No `SkipOnboarding()` modification occurs
+- Instance creation succeeds normally
+
+This allows forward compatibility with new agents before they implement the onboarding interface.
+
+### Testing with Agent Registry
+
+```go
+// Create manager with agent registry
+manager, _ := instances.NewManager(storageDir)
+
+// Register a specific agent for testing
+claudeAgent := agent.NewClaude()
+if err := manager.RegisterAgent("claude", claudeAgent); err != nil {
+    t.Fatalf("Failed to register agent: %v", err)
+}
+
+// Add instance - Claude's SkipOnboarding will be called automatically
+instance, err := manager.Add(ctx, instances.AddOptions{
+    Instance:    inst,
+    RuntimeType: "fake",
+    Agent:       "claude",
+})
+```
+
+See `pkg/instances/manager_test.go` (TestManager_Add_AppliesAgentOnboarding) for comprehensive test examples.
+
 ## Project Detection and Grouping
 
 Each workspace has a `project` field that enables grouping workspaces belonging to the same project across branches, forks, or subdirectories.
@@ -370,6 +440,11 @@ func (c *myCmd) preRun(cmd *cobra.Command, args []string) error {
     // Register runtimes
     if err := runtimesetup.RegisterAll(manager); err != nil {
         return fmt.Errorf("failed to register runtimes: %w", err)
+    }
+
+    // Register agents
+    if err := agentsetup.RegisterAll(manager); err != nil {
+        return fmt.Errorf("failed to register agents: %w", err)
     }
 
     c.manager = manager

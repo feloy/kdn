@@ -187,6 +187,23 @@ func TestPodmanRuntime_Initialize(t *testing.T) {
 	})
 }
 
+func TestPodmanRuntime_WorkspaceSourcesPath(t *testing.T) {
+	t.Parallel()
+
+	rt := New()
+	path := rt.WorkspaceSourcesPath()
+
+	if path != "/workspace/sources" {
+		t.Errorf("WorkspaceSourcesPath() = %q, want %q", path, "/workspace/sources")
+	}
+
+	// Verify it's consistent across calls
+	path2 := rt.WorkspaceSourcesPath()
+	if path != path2 {
+		t.Errorf("WorkspaceSourcesPath() inconsistent: %q != %q", path, path2)
+	}
+}
+
 // fakeSystem is a fake implementation of system.System for testing.
 type fakeSystem struct {
 	commandExists  bool

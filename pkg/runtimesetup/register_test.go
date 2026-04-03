@@ -45,6 +45,8 @@ type testRuntime struct {
 
 func (t *testRuntime) Type() string { return t.runtimeType }
 
+func (t *testRuntime) WorkspaceSourcesPath() string { return "/workspace/sources" }
+
 func (t *testRuntime) Create(ctx context.Context, params runtime.CreateParams) (runtime.RuntimeInfo, error) {
 	return runtime.RuntimeInfo{}, fmt.Errorf("not implemented")
 }

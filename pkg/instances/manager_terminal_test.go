@@ -20,6 +20,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/kortex-hub/kortex-cli/pkg/agent"
 	"github.com/kortex-hub/kortex-cli/pkg/runtime"
 	"github.com/kortex-hub/kortex-cli/pkg/runtime/fake"
 )
@@ -80,7 +81,7 @@ func TestManager_Terminal(t *testing.T) {
 		reg, _ := runtime.NewRegistry(filepath.Join(tmpDir, "runtimes"))
 		_ = reg.Register(fakeRT)
 
-		manager, _ := newManagerWithFactory(tmpDir, fakeInstanceFactory, newFakeGenerator(), reg, newFakeGitDetector())
+		manager, _ := newManagerWithFactory(tmpDir, fakeInstanceFactory, newFakeGenerator(), reg, agent.NewRegistry(), newFakeGitDetector())
 
 		instanceTmpDir := t.TempDir()
 		inst := newFakeInstance(newFakeInstanceParams{
@@ -129,7 +130,7 @@ func TestManager_Terminal(t *testing.T) {
 		reg, _ := runtime.NewRegistry(filepath.Join(tmpDir, "runtimes"))
 		_ = reg.Register(fakeRT)
 
-		manager, _ := newManagerWithFactory(tmpDir, fakeInstanceFactory, newFakeGenerator(), reg, newFakeGitDetector())
+		manager, _ := newManagerWithFactory(tmpDir, fakeInstanceFactory, newFakeGenerator(), reg, agent.NewRegistry(), newFakeGitDetector())
 
 		instanceTmpDir := t.TempDir()
 		inst := newFakeInstance(newFakeInstanceParams{
@@ -157,7 +158,7 @@ func TestManager_Terminal(t *testing.T) {
 		t.Parallel()
 
 		tmpDir := t.TempDir()
-		manager, _ := newManagerWithFactory(tmpDir, fakeInstanceFactory, newFakeGenerator(), newTestRegistryWithTerminal(tmpDir, nil), newFakeGitDetector())
+		manager, _ := newManagerWithFactory(tmpDir, fakeInstanceFactory, newFakeGenerator(), newTestRegistryWithTerminal(tmpDir, nil), agent.NewRegistry(), newFakeGitDetector())
 
 		err := manager.Terminal(context.Background(), "nonexistent-id", []string{"bash"})
 		if !errors.Is(err, ErrInstanceNotFound) {
@@ -175,7 +176,7 @@ func TestManager_Terminal(t *testing.T) {
 		reg, _ := runtime.NewRegistry(filepath.Join(tmpDir, "runtimes"))
 		_ = reg.Register(fakeRT)
 
-		manager, _ := newManagerWithFactory(tmpDir, fakeInstanceFactory, newFakeGenerator(), reg, newFakeGitDetector())
+		manager, _ := newManagerWithFactory(tmpDir, fakeInstanceFactory, newFakeGenerator(), reg, agent.NewRegistry(), newFakeGitDetector())
 
 		instanceTmpDir := t.TempDir()
 		inst := newFakeInstance(newFakeInstanceParams{
@@ -208,7 +209,7 @@ func TestManager_Terminal(t *testing.T) {
 		regularFakeRT := fake.New()
 		_ = reg.Register(regularFakeRT)
 
-		manager, _ := newManagerWithFactory(tmpDir, fakeInstanceFactory, newFakeGenerator(), reg, newFakeGitDetector())
+		manager, _ := newManagerWithFactory(tmpDir, fakeInstanceFactory, newFakeGenerator(), reg, agent.NewRegistry(), newFakeGitDetector())
 
 		instanceTmpDir := t.TempDir()
 		inst := newFakeInstance(newFakeInstanceParams{
@@ -242,7 +243,7 @@ func TestManager_Terminal(t *testing.T) {
 		reg, _ := runtime.NewRegistry(filepath.Join(tmpDir, "runtimes"))
 		_ = reg.Register(fakeRT)
 
-		manager, _ := newManagerWithFactory(tmpDir, fakeInstanceFactory, newFakeGenerator(), reg, newFakeGitDetector())
+		manager, _ := newManagerWithFactory(tmpDir, fakeInstanceFactory, newFakeGenerator(), reg, agent.NewRegistry(), newFakeGitDetector())
 
 		instanceTmpDir := t.TempDir()
 		inst := newFakeInstance(newFakeInstanceParams{

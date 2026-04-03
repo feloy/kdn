@@ -27,6 +27,7 @@ import (
 
 	api "github.com/kortex-hub/kortex-cli-api/cli/go"
 	workspace "github.com/kortex-hub/kortex-cli-api/workspace-configuration/go"
+	"github.com/kortex-hub/kortex-cli/pkg/agent"
 	"github.com/kortex-hub/kortex-cli/pkg/config"
 	"github.com/kortex-hub/kortex-cli/pkg/generator"
 	"github.com/kortex-hub/kortex-cli/pkg/git"
@@ -78,6 +79,8 @@ type Manager interface {
 	Reconcile() ([]string, error)
 	// RegisterRuntime registers a runtime with the manager's registry
 	RegisterRuntime(rt runtime.Runtime) error
+	// RegisterAgent registers an agent with the manager's registry
+	RegisterAgent(name string, agent agent.Agent) error
 }
 
 // manager is the internal implementation of Manager
@@ -88,6 +91,7 @@ type manager struct {
 	factory         InstanceFactory
 	generator       generator.Generator
 	runtimeRegistry runtime.Registry
+	agentRegistry   agent.Registry
 	gitDetector     git.Detector
 }
 
@@ -101,12 +105,13 @@ func NewManager(storageDir string) (Manager, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to create runtime registry: %w", err)
 	}
-	return newManagerWithFactory(storageDir, NewInstanceFromData, generator.New(), reg, git.NewDetector())
+	agentReg := agent.NewRegistry()
+	return newManagerWithFactory(storageDir, NewInstanceFromData, generator.New(), reg, agentReg, git.NewDetector())
 }
 
 // newManagerWithFactory creates a new instance manager with a custom instance factory, generator, registry, and git detector.
 // This is unexported and primarily useful for testing with fake instances, generators, runtimes, and git detector.
-func newManagerWithFactory(storageDir string, factory InstanceFactory, gen generator.Generator, reg runtime.Registry, detector git.Detector) (Manager, error) {
+func newManagerWithFactory(storageDir string, factory InstanceFactory, gen generator.Generator, reg runtime.Registry, agentReg agent.Registry, detector git.Detector) (Manager, error) {
 	if storageDir == "" {
 		return nil, errors.New("storage directory cannot be empty")
 	}
@@ -118,6 +123,9 @@ func newManagerWithFactory(storageDir string, factory InstanceFactory, gen gener
 	}
 	if reg == nil {
 		return nil, errors.New("registry cannot be nil")
+	}
+	if agentReg == nil {
+		return nil, errors.New("agent registry cannot be nil")
 	}
 	if detector == nil {
 		return nil, errors.New("git detector cannot be nil")
@@ -135,6 +143,7 @@ func newManagerWithFactory(storageDir string, factory InstanceFactory, gen gener
 		factory:         factory,
 		generator:       gen,
 		runtimeRegistry: reg,
+		agentRegistry:   agentReg,
 		gitDetector:     detector,
 	}, nil
 }
@@ -211,6 +220,19 @@ func (m *manager) Add(ctx context.Context, opts AddOptions) (Instance, error) {
 	agentSettings, err := m.readAgentSettings(m.storageDir, opts.Agent)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read agent settings: %w", err)
+	}
+
+	// Modify agent settings to skip onboarding if agent has implementation
+	if opts.Agent != "" {
+		if agentImpl, err := m.agentRegistry.Get(opts.Agent); err == nil {
+			// Get workspace sources path from runtime before creating instance
+			workspaceSourcesPath := rt.WorkspaceSourcesPath()
+			agentSettings, err = agentImpl.SkipOnboarding(agentSettings, workspaceSourcesPath)
+			if err != nil {
+				return nil, fmt.Errorf("failed to apply agent onboarding settings: %w", err)
+			}
+		}
+		// If agent not found in registry, use settings as-is (not all agents may be implemented)
 	}
 
 	// Create runtime instance with merged configuration
@@ -565,6 +587,11 @@ func (m *manager) Reconcile() ([]string, error) {
 // RegisterRuntime registers a runtime with the manager's registry.
 func (m *manager) RegisterRuntime(rt runtime.Runtime) error {
 	return m.runtimeRegistry.Register(rt)
+}
+
+// RegisterAgent registers an agent with the manager's registry.
+func (m *manager) RegisterAgent(name string, agent agent.Agent) error {
+	return m.agentRegistry.Register(name, agent)
 }
 
 // generateUniqueName generates a unique name from the source directory

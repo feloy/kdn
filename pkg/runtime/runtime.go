@@ -30,6 +30,10 @@ type Runtime interface {
 	// Type returns the runtime type identifier (e.g., "podman", "docker", "process", "fake").
 	Type() string
 
+	// WorkspaceSourcesPath returns the path where sources will be mounted inside the workspace.
+	// This is a constant for each runtime type and doesn't require an instance to exist.
+	WorkspaceSourcesPath() string
+
 	// Create creates a new runtime instance without starting it.
 	// Returns RuntimeInfo with the assigned instance ID and initial state.
 	Create(ctx context.Context, params CreateParams) (RuntimeInfo, error)

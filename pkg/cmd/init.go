@@ -26,6 +26,7 @@ import (
 	"path/filepath"
 
 	workspace "github.com/kortex-hub/kortex-cli-api/workspace-configuration/go"
+	"github.com/kortex-hub/kortex-cli/pkg/agentsetup"
 	"github.com/kortex-hub/kortex-cli/pkg/config"
 	"github.com/kortex-hub/kortex-cli/pkg/instances"
 	"github.com/kortex-hub/kortex-cli/pkg/logger"
@@ -90,6 +91,11 @@ func (i *initCmd) preRun(cmd *cobra.Command, args []string) error {
 	// Register all available runtimes
 	if err := runtimesetup.RegisterAll(manager); err != nil {
 		return outputErrorIfJSON(cmd, i.output, fmt.Errorf("failed to register runtimes: %w", err))
+	}
+
+	// Register all available agents
+	if err := agentsetup.RegisterAll(manager); err != nil {
+		return outputErrorIfJSON(cmd, i.output, fmt.Errorf("failed to register agents: %w", err))
 	}
 
 	i.manager = manager

@@ -36,6 +36,23 @@ func TestFakeRuntime_Type(t *testing.T) {
 	}
 }
 
+func TestFakeRuntime_WorkspaceSourcesPath(t *testing.T) {
+	t.Parallel()
+
+	rt := New()
+	path := rt.WorkspaceSourcesPath()
+
+	if path != "/project/sources" {
+		t.Errorf("WorkspaceSourcesPath() = %q, want %q", path, "/project/sources")
+	}
+
+	// Verify it's consistent across calls
+	path2 := rt.WorkspaceSourcesPath()
+	if path != path2 {
+		t.Errorf("WorkspaceSourcesPath() inconsistent: %q != %q", path, path2)
+	}
+}
+
 func TestFakeRuntime_CreateStartStopRemove(t *testing.T) {
 	t.Parallel()
 
