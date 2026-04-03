@@ -126,6 +126,11 @@ func (w *workspaceRemoveCmd) run(cmd *cobra.Command, args []string) error {
 	// Get the actual ID (in case user provided a name)
 	instanceID := instance.GetID()
 
+	// Explicitly reject removing running workspace without --force for stable UX.
+	if !w.force && instance.GetRuntimeData().State == api.WorkspaceStateRunning {
+		return outputErrorIfJSON(cmd, w.output, fmt.Errorf("workspace is running; stop it first or use --force"))
+	}
+
 	// If force flag is set and instance is running, stop it first
 	if w.force && instance.GetRuntimeData().State == api.WorkspaceStateRunning {
 		if err := w.manager.Stop(ctx, instanceID); err != nil {
