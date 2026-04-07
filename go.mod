@@ -5,8 +5,8 @@ go 1.26.1
 require (
 	github.com/fatih/color v1.19.0
 	github.com/goccy/go-yaml v1.19.2
-	github.com/kortex-hub/kortex-cli-api/cli/go v0.0.0-20260403083702-361dae1613c4
-	github.com/kortex-hub/kortex-cli-api/workspace-configuration/go v0.0.0-20260331070743-a7c5f045c21c
+	github.com/kortex-hub/kortex-cli-api/cli/go v0.1.10
+	github.com/kortex-hub/kortex-cli-api/workspace-configuration/go v0.1.10
 	github.com/rodaine/table v1.3.1
 	github.com/spf13/cobra v1.10.2
 	github.com/spf13/pflag v1.0.10
