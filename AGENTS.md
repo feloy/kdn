@@ -84,14 +84,15 @@ make install
 Global flags are defined as persistent flags in `pkg/cmd/root.go` and are available to all commands.
 
 #### Accessing the --storage Flag
-The `--storage` flag specifies the directory where kdn stores all its files. The default path is computed at runtime using `os.UserHomeDir()` and `filepath.Join()` to ensure cross-platform compatibility (Linux, macOS, Windows). The default is `$HOME/.kortex-cli` with a fallback to `.kortex-cli` in the current directory if the home directory cannot be determined.
+
+The `--storage` flag specifies the directory where kdn stores all its files. The default path is computed at runtime using `os.UserHomeDir()` and `filepath.Join()` to ensure cross-platform compatibility (Linux, macOS, Windows). The default is `$HOME/.kdn` with a fallback to `.kdn` in the current directory if the home directory cannot be determined.
 
 **Environment Variable**: The `KORTEX_CLI_STORAGE` environment variable can be used to set the storage directory path. The flag `--storage` will override the environment variable if both are specified.
 
 **Priority order** (highest to lowest):
 1. `--storage` flag (if specified)
 2. `KORTEX_CLI_STORAGE` environment variable (if set)
-3. Default: `$HOME/.kortex-cli`
+3. Default: `$HOME/.kdn`
 
 To access this value in any command:
 
@@ -207,9 +208,9 @@ The config system manages workspace configuration for **injecting environment va
 
 **Multi-Level Configuration:**
 - **Workspace-level** (`.kaiden/workspace.json`) - Project configuration, set via `--workspace-configuration` flag
-- **Project-specific** (`~/.kortex-cli/config/projects.json`) - User's custom config for specific projects
+- **Project-specific** (`~/.kdn/config/projects.json`) - User's custom config for specific projects
 - **Global** (empty string `""` key in `projects.json`) - Settings applied to all projects
-- **Agent-specific** (`~/.kortex-cli/config/agents.json`) - Per-agent overrides
+- **Agent-specific** (`~/.kdn/config/agents.json`) - Per-agent overrides
 
 **Configuration Precedence:** Agent > Project > Global > Workspace (highest to lowest)
 
@@ -217,7 +218,7 @@ The config system manages workspace configuration for **injecting environment va
 
 A separate mechanism (distinct from env/mount config) allows default dotfiles to be baked into the workspace image:
 
-- **Location:** `~/.kortex-cli/config/<agent>/` (e.g., `~/.kortex-cli/config/claude/`)
+- **Location:** `~/.kdn/config/<agent>/` (e.g., `~/.kdn/config/claude/`)
 - Files are read by `manager.readAgentSettings()` into a `map[string][]byte` and passed to the runtime via `runtime.CreateParams.AgentSettings`
 - The Podman runtime writes these files into the build context as `agent-settings/` and adds `COPY --chown=agent:agent agent-settings/. /home/agent/` to the Containerfile
 - Result: every file under `config/<agent>/` lands at the corresponding path under `/home/agent/` inside the image

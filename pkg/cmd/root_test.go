@@ -84,9 +84,9 @@ func TestRootCmd_StorageFlag(t *testing.T) {
 		t.Error("Expected --storage flag to have a default value")
 	}
 
-	// Verify the default value ends with .kortex-cli
-	if !strings.HasSuffix(flag.DefValue, ".kortex-cli") {
-		t.Errorf("Expected default value to end with '.kortex-cli', got '%s'", flag.DefValue)
+	// Verify the default value ends with .kdn
+	if !strings.HasSuffix(flag.DefValue, ".kdn") {
+		t.Errorf("Expected default value to end with '.kdn', got '%s'", flag.DefValue)
 	}
 }
 
@@ -218,9 +218,9 @@ func TestRootCmd_StorageEnvVariable(t *testing.T) {
 			t.Fatal("Expected --storage flag to exist")
 		}
 
-		// Verify the default value ends with .kortex-cli
-		if !strings.HasSuffix(flag.DefValue, ".kortex-cli") {
-			t.Errorf("Expected default value to end with '.kortex-cli', got '%s'", flag.DefValue)
+		// Verify the default value ends with .kdn
+		if !strings.HasSuffix(flag.DefValue, ".kdn") {
+			t.Errorf("Expected default value to end with '.kdn', got '%s'", flag.DefValue)
 		}
 	})
 }

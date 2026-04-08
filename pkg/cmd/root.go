@@ -28,9 +28,9 @@ import (
 func NewRootCmd() *cobra.Command {
 	// Compute default storage directory path cross-platform
 	homeDir, err := os.UserHomeDir()
-	defaultStoragePath := ".kortex-cli" // fallback to current directory
+	defaultStoragePath := ".kdn" // fallback to current directory
 	if err == nil {
-		defaultStoragePath = filepath.Join(homeDir, ".kortex-cli")
+		defaultStoragePath = filepath.Join(homeDir, ".kdn")
 	}
 
 	// Check for environment variable

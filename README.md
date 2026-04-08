@@ -99,7 +99,7 @@ This scenario demonstrates how to configure Claude Code to use a model hosted on
 
 **Step 1: Configure Claude agent settings**
 
-Create or edit `~/.kortex-cli/config/agents.json` to add the required environment variables and mount your Google Cloud credentials into the workspace:
+Create or edit `~/.kdn/config/agents.json` to add the required environment variables and mount your Google Cloud credentials into the workspace:
 
 ```json
 {
@@ -205,13 +205,13 @@ If you want to customize Claude's theme or other preferences, create default set
 **Step 1: Create the agent settings directory**
 
 ```bash
-mkdir -p ~/.kortex-cli/config/claude
+mkdir -p ~/.kdn/config/claude
 ```
 
 **Step 2: Write the default Claude settings file**
 
 ```bash
-cat > ~/.kortex-cli/config/claude/.claude.json << 'EOF'
+cat > ~/.kdn/config/claude/.claude.json << 'EOF'
 {
   "theme": "dark-daltonized"
 }
@@ -238,7 +238,7 @@ kdn terminal my-project
 ```
 
 When `init` runs, kdn:
-1. Reads all files from `~/.kortex-cli/config/claude/` (e.g., your theme preferences)
+1. Reads all files from `~/.kdn/config/claude/` (e.g., your theme preferences)
 2. Automatically adds `hasCompletedOnboarding: true` and marks the workspace sources directory as trusted (the path is determined by the runtime)
 3. Copies the final merged settings into the container image at `/home/agent/.claude.json`
 
@@ -248,7 +248,7 @@ Claude Code finds this file on startup and skips onboarding.
 
 - **Onboarding is skipped automatically** — even if you don't create any settings files, kdn ensures Claude starts without prompts
 - The settings are baked into the container image at `init` time, not mounted at runtime — changes to the files on the host require re-registering the workspace to take effect
-- Any file placed under `~/.kortex-cli/config/claude/` is copied into the container home directory, preserving the directory structure (e.g., `~/.kortex-cli/config/claude/.some-tool/config` becomes `/home/agent/.some-tool/config` inside the container)
+- Any file placed under `~/.kdn/config/claude/` is copied into the container home directory, preserving the directory structure (e.g., `~/.kdn/config/claude/.some-tool/config` becomes `/home/agent/.some-tool/config` inside the container)
 - This approach keeps your workspace self-contained — other developers using the same project are not affected, and your local `~/.claude` directory is not exposed inside the container
 - To apply changes to the settings, remove and re-register the workspace: `kdn remove <workspace-id>` then `kdn init` again
 
@@ -260,7 +260,7 @@ This scenario demonstrates how to configure the Goose agent in a kdn workspace u
 
 Goose can use Google Cloud Vertex AI as its backend. Authentication relies on Application Default Credentials (ADC) provided by the `gcloud` CLI. Mount your local `~/.config/gcloud` directory to make your host credentials available inside the workspace, and set the `GCP_PROJECT_ID`, `GCP_LOCATION`, and `GOOSE_PROVIDER` environment variables to tell Goose which project and region to use.
 
-Create or edit `~/.kortex-cli/config/agents.json`:
+Create or edit `~/.kdn/config/agents.json`:
 
 ```json
 {
@@ -305,7 +305,7 @@ kdn terminal my-project
 
 To reuse your host Goose settings (model preferences, provider configuration, etc.) inside the workspace, mount the `~/.config/goose` directory.
 
-Edit `~/.kortex-cli/config/agents.json` to add the mount alongside the Vertex AI configuration:
+Edit `~/.kdn/config/agents.json` to add the mount alongside the Vertex AI configuration:
 
 ```json
 {
@@ -345,7 +345,7 @@ When you register a workspace with the Goose agent, kdn automatically sets `GOOS
 **Step 1: Create the agent settings directory**
 
 ```bash
-mkdir -p ~/.kortex-cli/config/goose/.config/goose
+mkdir -p ~/.kdn/config/goose/.config/goose
 ```
 
 **Step 2: Write the default Goose settings file**
@@ -353,7 +353,7 @@ mkdir -p ~/.kortex-cli/config/goose/.config/goose
 As an example, you can configure the model and enable telemetry:
 
 ```bash
-cat > ~/.kortex-cli/config/goose/.config/goose/config.yaml << 'EOF'
+cat > ~/.kdn/config/goose/.config/goose/config.yaml << 'EOF'
 GOOSE_MODEL: "claude-sonnet-4-6"
 GOOSE_TELEMETRY_ENABLED: true
 EOF
@@ -378,7 +378,7 @@ kdn terminal my-project
 ```
 
 When `init` runs, kdn:
-1. Reads all files from `~/.kortex-cli/config/goose/` (e.g., your provider and model settings)
+1. Reads all files from `~/.kdn/config/goose/` (e.g., your provider and model settings)
 2. Automatically sets `GOOSE_TELEMETRY_ENABLED: false` in `.config/goose/config.yaml` if the key is not already defined
 3. Copies the final settings into the container image at `/home/agent/.config/goose/config.yaml`
 
@@ -387,9 +387,9 @@ Goose finds this file on startup and uses the pre-configured settings without pr
 **Notes:**
 
 - **Telemetry is disabled automatically** — even if you don't create any settings files, kdn ensures Goose starts without the telemetry prompt
-- If you prefer to enable telemetry, set `GOOSE_TELEMETRY_ENABLED: true` in `~/.kortex-cli/config/goose/.config/goose/config.yaml`
+- If you prefer to enable telemetry, set `GOOSE_TELEMETRY_ENABLED: true` in `~/.kdn/config/goose/.config/goose/config.yaml`
 - The settings are baked into the container image at `init` time, not mounted at runtime — changes to the files on the host require re-registering the workspace to take effect
-- Any file placed under `~/.kortex-cli/config/goose/` is copied into the container home directory, preserving the directory structure (e.g., `~/.kortex-cli/config/goose/.config/goose/config.yaml` becomes `/home/agent/.config/goose/config.yaml` inside the container)
+- Any file placed under `~/.kdn/config/goose/` is copied into the container home directory, preserving the directory structure (e.g., `~/.kdn/config/goose/.config/goose/config.yaml` becomes `/home/agent/.config/goose/config.yaml` inside the container)
 - This approach keeps your workspace self-contained — other developers using the same project are not affected, and your local `~/.config/goose` directory is not exposed inside the container
 - To apply changes to the settings, remove and re-register the workspace: `kdn remove <workspace-id>` then `kdn init` again
 
@@ -411,7 +411,7 @@ echo "$CURSOR_API_KEY" | podman secret create cursor-api-key -
 
 **Step 2: Reference the secret in agent configuration**
 
-Create or edit `~/.kortex-cli/config/agents.json` to inject the secret as an environment variable for the `cursor` agent:
+Create or edit `~/.kdn/config/agents.json` to inject the secret as an environment variable for the `cursor` agent:
 
 ```json
 {
@@ -445,7 +445,7 @@ The secret name (`cursor-api-key`) must match the `secret` field value in your c
 
 To reuse your host Cursor settings (preferences, keybindings, extensions configuration, etc.) inside the workspace, mount the `~/.cursor` directory.
 
-Edit `~/.kortex-cli/config/agents.json` to add the mount:
+Edit `~/.kdn/config/agents.json` to add the mount:
 
 ```json
 {
@@ -475,7 +475,7 @@ When you register a workspace with the Cursor agent, kdn automatically creates a
 
 **Step 1: Configure the agent environment**
 
-Create or edit `~/.kortex-cli/config/agents.json` to inject the API key. No mount is needed since settings are baked in:
+Create or edit `~/.kdn/config/agents.json` to inject the API key. No mount is needed since settings are baked in:
 
 ```json
 {
@@ -493,7 +493,7 @@ Create or edit `~/.kortex-cli/config/agents.json` to inject the API key. No moun
 **Step 2: Create the agent settings directory**
 
 ```bash
-mkdir -p ~/.kortex-cli/config/cursor/.cursor
+mkdir -p ~/.kdn/config/cursor/.cursor
 ```
 
 **Step 3: Write the default Cursor settings file (optional)**
@@ -501,7 +501,7 @@ mkdir -p ~/.kortex-cli/config/cursor/.cursor
 You can optionally pre-configure Cursor with additional settings by creating a `cli-config.json` file:
 
 ```bash
-cat > ~/.kortex-cli/config/cursor/.cursor/cli-config.json << 'EOF'
+cat > ~/.kdn/config/cursor/.cursor/cli-config.json << 'EOF'
 {
   "model": {
     "modelId": "my-preferred-model",
@@ -541,7 +541,7 @@ kdn terminal my-project
 ```
 
 When `init` runs, kdn:
-1. Reads all files from `~/.kortex-cli/config/cursor/` (e.g., your settings)
+1. Reads all files from `~/.kdn/config/cursor/` (e.g., your settings)
 2. If `--model` is specified, updates `cli-config.json` with the model configuration (takes precedence over any existing model in settings files)
 3. Automatically creates the workspace trust file so Cursor skips its trust dialog
 4. Copies the final settings into the container image at `/home/agent/.cursor/cli-config.json`
@@ -552,7 +552,7 @@ Cursor finds this file on startup and uses the pre-configured model without prom
 
 - **Model configuration**: Use `--model` flag during `init` to set the model (e.g., `--model my-model-id`). This takes precedence over any model defined in settings files
 - The settings are baked into the container image at `init` time, not mounted at runtime — changes to the files on the host require re-registering the workspace to take effect
-- Any file placed under `~/.kortex-cli/config/cursor/` is copied into the container home directory, preserving the directory structure (e.g., `~/.kortex-cli/config/cursor/.cursor/cli-config.json` becomes `/home/agent/.cursor/cli-config.json` inside the container)
+- Any file placed under `~/.kdn/config/cursor/` is copied into the container home directory, preserving the directory structure (e.g., `~/.kdn/config/cursor/.cursor/cli-config.json` becomes `/home/agent/.cursor/cli-config.json` inside the container)
 - To apply changes to the settings, remove and re-register the workspace: `kdn remove <workspace-id>` then `kdn init` again
 - This approach keeps your workspace self-contained — other developers using the same project are not affected, and your local `~/.cursor` directory is not exposed inside the container
 - Do not combine this approach with the `~/.cursor` mount from the previous section — the mounted directory would override the baked-in defaults at runtime
@@ -563,7 +563,7 @@ This scenario demonstrates how to make a GitHub token available inside workspace
 
 **For all projects**
 
-Edit `~/.kortex-cli/config/projects.json` and add the token and your git configuration under the global `""` key:
+Edit `~/.kdn/config/projects.json` and add the token and your git configuration under the global `""` key:
 
 ```json
 {
@@ -681,7 +681,7 @@ This results in the following layout:
 
 **Step 3: Configure the main branch mount in your local project config**
 
-If you want the agents to have access to the main branch (e.g., to compare changes), add the mount in `~/.kortex-cli/config/projects.json` under the project identifier. This keeps the configuration on your machine only — not all developers of the project may use worktrees, so it does not belong in the repository's `.kaiden/workspace.json`.
+If you want the agents to have access to the main branch (e.g., to compare changes), add the mount in `~/.kdn/config/projects.json` under the project identifier. This keeps the configuration on your machine only — not all developers of the project may use worktrees, so it does not belong in the repository's `.kaiden/workspace.json`.
 
 ```json
 {
@@ -1054,7 +1054,7 @@ The storage directory is determined in the following order (highest to lowest pr
 
 1. `--storage` flag (if specified)
 2. `KORTEX_CLI_STORAGE` environment variable (if set)
-3. Default: `$HOME/.kortex-cli`
+3. Default: `$HOME/.kdn`
 
 **Example:**
 
@@ -1237,7 +1237,7 @@ The Podman runtime is fully configurable through JSON files. When you first use 
 **Configuration Location:**
 
 ```text
-$HOME/.kortex-cli/runtimes/podman/config/
+$HOME/.kdn/runtimes/podman/config/
 ├── image.json    # Base image configuration
 ├── claude.json   # Claude agent configuration
 └── goose.json    # Goose agent configuration
@@ -1358,12 +1358,12 @@ Configuration changes take effect when you **register a new workspace with `init
 1. Edit the configuration files:
    ```bash
    # Edit base image configuration
-   nano ~/.kortex-cli/runtimes/podman/config/image.json
+   nano ~/.kdn/runtimes/podman/config/image.json
 
    # Edit agent configuration (use the agent you want)
-   nano ~/.kortex-cli/runtimes/podman/config/claude.json
+   nano ~/.kdn/runtimes/podman/config/claude.json
    # or
-   nano ~/.kortex-cli/runtimes/podman/config/goose.json
+   nano ~/.kdn/runtimes/podman/config/goose.json
    ```
 
 2. Register a new workspace (this creates the Containerfile and builds the image):
@@ -1611,19 +1611,19 @@ kdn supports configuration at multiple levels, allowing you to customize workspa
 - Used by all agents
 - Committed to version control
 
-**2. Global Project Configuration** (`~/.kortex-cli/config/projects.json` with `""` key)
+**2. Global Project Configuration** (`~/.kdn/config/projects.json` with `""` key)
 - User-specific settings applied to **all projects**
 - Stored on your local machine (not committed to git)
 - Perfect for common settings like `.gitconfig`, SSH keys, or global environment variables
 - Never shared with other developers
 
-**3. Project-Specific Configuration** (`~/.kortex-cli/config/projects.json`)
+**3. Project-Specific Configuration** (`~/.kdn/config/projects.json`)
 - User-specific settings for a **specific project**
 - Stored on your local machine (not committed to git)
 - Overrides global settings for this project
 - Identified by project ID (git repository URL or directory path)
 
-**4. Agent-Specific Configuration** (`~/.kortex-cli/config/agents.json`)
+**4. Agent-Specific Configuration** (`~/.kdn/config/agents.json`)
 - User-specific settings for a **specific agent** (Claude, Goose, etc.)
 - Stored on your local machine (not committed to git)
 - Overrides all other configurations
@@ -1644,7 +1644,7 @@ When registering a workspace, configurations are merged in this order (later con
 
 User-specific configurations are stored in the kdn storage directory:
 
-- **Default location**: `~/.kortex-cli/config/`
+- **Default location**: `~/.kdn/config/`
 - **Custom location**: Set via `--storage` flag or `KORTEX_CLI_STORAGE` environment variable
 
 The storage directory contains:
@@ -1654,7 +1654,7 @@ The storage directory contains:
 
 ### Agent Configuration File
 
-**Location**: `~/.kortex-cli/config/agents.json`
+**Location**: `~/.kdn/config/agents.json`
 
 **Format**:
 ```json
@@ -1685,7 +1685,7 @@ Each key is an agent name (e.g., `claude`, `goose`). The value uses the same str
 
 ### Project Configuration File
 
-**Location**: `~/.kortex-cli/config/projects.json`
+**Location**: `~/.kdn/config/projects.json`
 
 **Format**:
 ```json
@@ -1815,7 +1815,7 @@ The system works without any configuration files and merges only the ones that e
 }
 ```
 
-**Global config** (`~/.kortex-cli/config/projects.json` - your machine only):
+**Global config** (`~/.kdn/config/projects.json` - your machine only):
 ```json
 {
   "": {
@@ -1827,7 +1827,7 @@ The system works without any configuration files and merges only the ones that e
 }
 ```
 
-**Project config** (`~/.kortex-cli/config/projects.json` - your machine only):
+**Project config** (`~/.kdn/config/projects.json` - your machine only):
 ```json
 {
   "github.com/kortex-hub/kortex-cli": {
@@ -1838,7 +1838,7 @@ The system works without any configuration files and merges only the ones that e
 }
 ```
 
-**Agent config** (`~/.kortex-cli/config/agents.json` - your machine only):
+**Agent config** (`~/.kdn/config/agents.json` - your machine only):
 ```json
 {
   "claude": {
@@ -1868,7 +1868,7 @@ kdn info [flags]
 #### Flags
 
 - `--output, -o <format>` - Output format (supported: `json`)
-- `--storage <path>` - Storage directory for kdn data (default: `$HOME/.kortex-cli`)
+- `--storage <path>` - Storage directory for kdn data (default: `$HOME/.kdn`)
 
 #### Examples
 
@@ -1938,7 +1938,7 @@ kdn init [sources-directory] [flags]
 - `--verbose, -v` - Show detailed output including all workspace information
 - `--output, -o <format>` - Output format (supported: `json`)
 - `--show-logs` - Show stdout and stderr from runtime commands (cannot be combined with `--output json`)
-- `--storage <path>` - Storage directory for kdn data (default: `$HOME/.kortex-cli`)
+- `--storage <path>` - Storage directory for kdn data (default: `$HOME/.kdn`)
 
 #### Examples
 
@@ -2137,7 +2137,7 @@ kdn init /tmp/workspace --runtime podman --agent claude
 
 - **Runtime is required**: You must specify a runtime using either the `--runtime` flag or the `KORTEX_CLI_DEFAULT_RUNTIME` environment variable
 - **Agent is required**: You must specify an agent using either the `--agent` flag or the `KORTEX_CLI_DEFAULT_AGENT` environment variable
-- **Model is optional**: Use `--model` to specify a model ID for the agent. The flag takes precedence over any model defined in the agent's default settings files (`~/.kortex-cli/config/<agent>/`). If not provided, the agent uses its default model or the one configured in settings. All agents support model configuration: Claude (via `.claude/settings.json`), Goose (via `config.yaml`), and Cursor (via `.cursor/cli-config.json`)
+- **Model is optional**: Use `--model` to specify a model ID for the agent. The flag takes precedence over any model defined in the agent's default settings files (`~/.kdn/config/<agent>/`). If not provided, the agent uses its default model or the one configured in settings. All agents support model configuration: Claude (via `.claude/settings.json`), Goose (via `config.yaml`), and Cursor (via `.cursor/cli-config.json`)
 - **Project auto-detection**: The project identifier is automatically detected from git repository information or source directory path. Use `--project` flag to override with a custom identifier
 - **Auto-start**: Use the `--start` flag or set `KORTEX_CLI_INIT_AUTO_START=1` to automatically start the workspace after registration, combining `init` and `start` into a single operation
 - All directory paths are converted to absolute paths for consistency
@@ -2164,7 +2164,7 @@ kdn list [flags]
 #### Flags
 
 - `--output, -o <format>` - Output format (supported: `json`)
-- `--storage <path>` - Storage directory for kdn data (default: `$HOME/.kortex-cli`)
+- `--storage <path>` - Storage directory for kdn data (default: `$HOME/.kdn`)
 
 #### Examples
 
@@ -2261,7 +2261,7 @@ kdn start NAME|ID [flags]
 
 - `--output, -o <format>` - Output format (supported: `json`)
 - `--show-logs` - Show stdout and stderr from runtime commands (cannot be combined with `--output json`)
-- `--storage <path>` - Storage directory for kdn data (default: `$HOME/.kortex-cli`)
+- `--storage <path>` - Storage directory for kdn data (default: `$HOME/.kdn`)
 
 #### Examples
 
@@ -2364,7 +2364,7 @@ kdn stop NAME|ID [flags]
 
 - `--output, -o <format>` - Output format (supported: `json`)
 - `--show-logs` - Show stdout and stderr from runtime commands (cannot be combined with `--output json`)
-- `--storage <path>` - Storage directory for kdn data (default: `$HOME/.kortex-cli`)
+- `--storage <path>` - Storage directory for kdn data (default: `$HOME/.kdn`)
 
 #### Examples
 
@@ -2466,7 +2466,7 @@ kdn terminal NAME|ID [COMMAND...] [flags]
 
 #### Flags
 
-- `--storage <path>` - Storage directory for kdn data (default: `$HOME/.kortex-cli`)
+- `--storage <path>` - Storage directory for kdn data (default: `$HOME/.kdn`)
 
 #### Examples
 
@@ -2572,7 +2572,7 @@ kdn remove NAME|ID [flags]
 - `--force, -f` - Stop the workspace if it is running before removing it
 - `--output, -o <format>` - Output format (supported: `json`)
 - `--show-logs` - Show stdout and stderr from runtime commands (cannot be combined with `--output json`)
-- `--storage <path>` - Storage directory for kdn data (default: `$HOME/.kortex-cli`)
+- `--storage <path>` - Storage directory for kdn data (default: `$HOME/.kdn`)
 
 #### Examples
 

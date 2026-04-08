@@ -21,9 +21,9 @@ The config system manages **workspace configuration** for injecting environment 
 The multi-level configuration system allows users to customize workspace settings at different levels:
 - **Workspace-level config** (`.kaiden/workspace.json`) - Shared project configuration committed to repository
   - Can be configured using the `--workspace-configuration` flag of the `init` command (path to directory containing `workspace.json`)
-- **Project-specific config** (`~/.kortex-cli/config/projects.json`) - User's custom config for specific projects
+- **Project-specific config** (`~/.kdn/config/projects.json`) - User's custom config for specific projects
 - **Global config** (empty string `""` key in `projects.json`) - Settings applied to all projects
-- **Agent-specific config** (`~/.kortex-cli/config/agents.json`) - Per-agent overrides (e.g., Claude, Goose)
+- **Agent-specific config** (`~/.kdn/config/agents.json`) - Per-agent overrides (e.g., Claude, Goose)
 
 These configurations control what gets injected **into** workspaces (environment variables, mounts), not how the workspace runtime is built or configured.
 
@@ -31,12 +31,12 @@ These configurations control what gets injected **into** workspaces (environment
 
 In addition to the env/mount configuration above, kdn supports **default settings files** that are baked directly into the workspace image at `init` time.
 
-**Location:** `~/.kortex-cli/config/<agent>/` (one directory per agent name)
+**Location:** `~/.kdn/config/<agent>/` (one directory per agent name)
 
 Any file placed in this directory is copied into the agent user's home directory (`/home/agent/`) inside the container image, preserving the directory structure. For example:
 
 ```text
-~/.kortex-cli/config/claude/
+~/.kdn/config/claude/
 └── .claude.json          → /home/agent/.claude.json inside the image
 ```
 
@@ -81,7 +81,7 @@ This allows users to quickly specify a model without manually editing settings f
 
 ## Configuration File Locations
 
-All user-specific configuration files are stored under the storage directory (default: `~/.kortex-cli`, configurable via `--storage` flag or `KORTEX_CLI_STORAGE` environment variable):
+All user-specific configuration files are stored under the storage directory (default: `~/.kdn`, configurable via `--storage` flag or `KORTEX_CLI_STORAGE` environment variable):
 
 - **Agent configs**: `<storage-dir>/config/agents.json`
 - **Project configs**: `<storage-dir>/config/projects.json`

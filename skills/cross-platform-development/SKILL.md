@@ -142,10 +142,10 @@ import "path/filepath"
 
 // GOOD: User home directory (host path)
 homeDir, err := os.UserHomeDir()
-defaultPath := filepath.Join(homeDir, ".kortex-cli")
+defaultPath := filepath.Join(homeDir, ".kdn")
 
 // BAD: Hardcoded tilde
-defaultPath := "~/.kortex-cli"  // Don't do this!
+defaultPath := "~/.kdn"  // Don't do this!
 ```
 
 ### Test Assertions
@@ -332,14 +332,14 @@ containerPath := path.Join("/home", "agent", "config", "file.json")
 import "path/filepath"
 
 // BAD: Tilde doesn't work cross-platform
-defaultPath := "~/.kortex-cli"
+defaultPath := "~/.kdn"
 
 // GOOD: Use os.UserHomeDir()
 homeDir, err := os.UserHomeDir()
 if err != nil {
     return "", err
 }
-defaultPath := filepath.Join(homeDir, ".kortex-cli")
+defaultPath := filepath.Join(homeDir, ".kdn")
 ```
 
 ### Absolute Path Detection
