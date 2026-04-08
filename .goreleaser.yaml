@@ -68,5 +68,5 @@ changelog:
 
 release:
   github:
-    owner: kortex-hub
+    owner: openkaiden
     name: kortex-cli
