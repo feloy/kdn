@@ -150,6 +150,109 @@ func TestNewInstance(t *testing.T) {
 	})
 }
 
+func TestInstance_GetModel(t *testing.T) {
+	t.Parallel()
+
+	t.Run("returns empty string when model not set", func(t *testing.T) {
+		t.Parallel()
+
+		tmpDir := t.TempDir()
+		inst, err := NewInstance(NewInstanceParams{
+			SourceDir: filepath.Join(tmpDir, "source"),
+			ConfigDir: filepath.Join(tmpDir, "config"),
+		})
+		if err != nil {
+			t.Fatalf("NewInstance() unexpected error = %v", err)
+		}
+
+		if inst.GetModel() != "" {
+			t.Errorf("GetModel() = %q, want empty string", inst.GetModel())
+		}
+	})
+
+	t.Run("returns model from InstanceData", func(t *testing.T) {
+		t.Parallel()
+
+		tmpDir := t.TempDir()
+		sourceDir := filepath.Join(tmpDir, "source")
+		configDir := filepath.Join(tmpDir, "config")
+
+		data := InstanceData{
+			ID:    "test-id",
+			Name:  "test-name",
+			Paths: InstancePaths{Source: sourceDir, Configuration: configDir},
+			Agent: "claude",
+			Model: "claude-sonnet-4-20250514",
+		}
+
+		inst, err := NewInstanceFromData(data)
+		if err != nil {
+			t.Fatalf("NewInstanceFromData() unexpected error = %v", err)
+		}
+
+		if inst.GetModel() != "claude-sonnet-4-20250514" {
+			t.Errorf("GetModel() = %q, want %q", inst.GetModel(), "claude-sonnet-4-20250514")
+		}
+	})
+
+	t.Run("Dump includes model", func(t *testing.T) {
+		t.Parallel()
+
+		tmpDir := t.TempDir()
+		sourceDir := filepath.Join(tmpDir, "source")
+		configDir := filepath.Join(tmpDir, "config")
+
+		data := InstanceData{
+			ID:    "test-id",
+			Name:  "test-name",
+			Paths: InstancePaths{Source: sourceDir, Configuration: configDir},
+			Agent: "claude",
+			Model: "my-model",
+		}
+
+		inst, err := NewInstanceFromData(data)
+		if err != nil {
+			t.Fatalf("NewInstanceFromData() unexpected error = %v", err)
+		}
+
+		dumped := inst.Dump()
+		if dumped.Model != "my-model" {
+			t.Errorf("Dump().Model = %q, want %q", dumped.Model, "my-model")
+		}
+	})
+
+	t.Run("round-trips model through NewInstanceFromData", func(t *testing.T) {
+		t.Parallel()
+
+		tmpDir := t.TempDir()
+		sourceDir := filepath.Join(tmpDir, "source")
+		configDir := filepath.Join(tmpDir, "config")
+
+		data := InstanceData{
+			ID:    "round-trip-id",
+			Name:  "round-trip-name",
+			Paths: InstancePaths{Source: sourceDir, Configuration: configDir},
+			Agent: "goose",
+			Model: "goose-model-v2",
+		}
+
+		inst, err := NewInstanceFromData(data)
+		if err != nil {
+			t.Fatalf("NewInstanceFromData() unexpected error = %v", err)
+		}
+
+		// Round-trip: dump and reload
+		inst2, err := NewInstanceFromData(inst.Dump())
+		if err != nil {
+			t.Fatalf("NewInstanceFromData() round-trip error = %v", err)
+		}
+
+		if inst2.GetModel() != "goose-model-v2" {
+			t.Errorf("GetModel() after round-trip = %q, want %q", inst2.GetModel(), "goose-model-v2")
+		}
+	})
+}
+
 func TestInstance_IsAccessible(t *testing.T) {
 	t.Parallel()
 

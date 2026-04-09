@@ -127,6 +127,72 @@ func TestInstanceToWorkspace(t *testing.T) {
 		}
 	})
 
+	t.Run("sets model field when model is set", func(t *testing.T) {
+		t.Parallel()
+
+		sourceDir := t.TempDir()
+		configDir := t.TempDir()
+
+		instanceData := instances.InstanceData{
+			ID:    "model-test-id",
+			Name:  "model-workspace",
+			Paths: instances.InstancePaths{Source: sourceDir, Configuration: configDir},
+			Agent: "claude",
+			Model: "claude-sonnet-4-20250514",
+		}
+		instance, err := instances.NewInstanceFromData(instanceData)
+		if err != nil {
+			t.Fatalf("Failed to create instance from data: %v", err)
+		}
+
+		result := instanceToWorkspace(instance)
+
+		if result.Model == nil {
+			t.Fatal("Expected Model to be set, got nil")
+		}
+		if *result.Model != "claude-sonnet-4-20250514" {
+			t.Errorf("Expected Model %q, got %q", "claude-sonnet-4-20250514", *result.Model)
+		}
+	})
+
+	t.Run("omits model field when model is empty", func(t *testing.T) {
+		t.Parallel()
+
+		sourceDir := t.TempDir()
+		configDir := t.TempDir()
+
+		instanceData := instances.InstanceData{
+			ID:    "no-model-id",
+			Name:  "no-model-workspace",
+			Paths: instances.InstancePaths{Source: sourceDir, Configuration: configDir},
+			Agent: "claude",
+			// Model intentionally empty
+		}
+		instance, err := instances.NewInstanceFromData(instanceData)
+		if err != nil {
+			t.Fatalf("Failed to create instance from data: %v", err)
+		}
+
+		result := instanceToWorkspace(instance)
+
+		if result.Model != nil {
+			t.Errorf("Expected Model to be nil, got %q", *result.Model)
+		}
+
+		// Verify model field is absent from JSON (omitempty)
+		jsonData, err := json.Marshal(result)
+		if err != nil {
+			t.Fatalf("Failed to marshal result: %v", err)
+		}
+		var parsed map[string]interface{}
+		if err := json.Unmarshal(jsonData, &parsed); err != nil {
+			t.Fatalf("Failed to unmarshal JSON: %v", err)
+		}
+		if _, exists := parsed["model"]; exists {
+			t.Error("Expected 'model' field to be absent from JSON when not set")
+		}
+	})
+
 	t.Run("includes all required fields", func(t *testing.T) {
 		t.Parallel()
 

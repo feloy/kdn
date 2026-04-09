@@ -57,18 +57,18 @@ This means you can optionally customize agent preferences (theme, etc.) in the s
 
 **Model Configuration:**
 
-When the `--model` flag is provided during `init`, kdn calls the agent's `SetModel()` method to configure the model in the settings files:
+When the `--model` flag is provided during `init`, kdn does two things with the model:
 
-1. After `SkipOnboarding()` is called, if a model ID is specified, `SetModel()` is called
-2. The agent sets the appropriate model field in its settings:
+1. **Persists it in instance data**: The model ID is stored in `InstanceData.Model` and saved to `instances.json`. It can be retrieved via `instance.GetModel()` and is shown in `init` verbose output and `kdn list` (`AGENT/MODEL` column and JSON `model` field).
+
+2. **Writes it to agent settings**: Calls the agent's `SetModel()` method to configure the model in the agent-specific settings file baked into the container image:
    - Claude: `model` field in `.claude/settings.json`
    - Goose: `GOOSE_MODEL` field in `.config/goose/config.yaml`
    - Cursor: `model` object in `.cursor/cli-config.json`
-3. The `--model` flag takes precedence over any model already defined in the settings files
 
-This allows users to quickly specify a model without manually editing settings files.
+The `--model` flag takes precedence over any model already defined in the settings files. If no model is specified, `GetModel()` returns an empty string and the `model` field is omitted from JSON output.
 
-**Implementation:** `manager.readAgentSettings(storageDir, agentName)` in `pkg/instances/manager.go` walks this directory and returns a `map[string][]byte` (relative forward-slash path → content). If the agent is registered in the agent registry, the manager calls the agent's `SkipOnboarding()` method to modify the settings. If a model ID is provided, the manager then calls the agent's `SetModel()` method to configure the model in the appropriate settings file. The final map is passed to the runtime via `runtime.CreateParams.AgentSettings`. The Podman runtime writes the files into the build context and adds a `COPY --chown=agent:agent agent-settings/. /home/agent/` instruction to the Containerfile.
+**Implementation:** `manager.readAgentSettings(storageDir, agentName)` in `pkg/instances/manager.go` walks this directory and returns a `map[string][]byte` (relative forward-slash path → content). If the agent is registered in the agent registry, the manager calls the agent's `SkipOnboarding()` method to modify the settings. If a model ID is provided, the manager then calls the agent's `SetModel()` method to configure the model in the appropriate settings file. The final map is passed to the runtime via `runtime.CreateParams.AgentSettings`. The Podman runtime writes the files into the build context and adds a `COPY --chown=agent:agent agent-settings/. /home/agent/` instruction to the Containerfile. The model is also stored directly in the `instance` struct and persisted in `instances.json` via `InstanceData.Model`.
 
 ## Key Components
 

@@ -547,6 +547,272 @@ func TestWorkspaceListCmd_E2E(t *testing.T) {
 	})
 }
 
+func TestWorkspaceListCmd_Model(t *testing.T) {
+	t.Parallel()
+
+	t.Run("table header shows AGENT/MODEL", func(t *testing.T) {
+		t.Parallel()
+
+		storageDir := t.TempDir()
+		sourcesDir := t.TempDir()
+
+		manager, err := instances.NewManager(storageDir)
+		if err != nil {
+			t.Fatalf("Failed to create manager: %v", err)
+		}
+
+		instance, err := instances.NewInstance(instances.NewInstanceParams{
+			SourceDir: sourcesDir,
+			ConfigDir: filepath.Join(sourcesDir, ".kaiden"),
+		})
+		if err != nil {
+			t.Fatalf("Failed to create instance: %v", err)
+		}
+
+		if err := manager.RegisterRuntime(fake.New()); err != nil {
+			t.Fatalf("Failed to register fake runtime: %v", err)
+		}
+
+		_, err = manager.Add(context.Background(), instances.AddOptions{Instance: instance, RuntimeType: "fake"})
+		if err != nil {
+			t.Fatalf("Failed to add instance: %v", err)
+		}
+
+		rootCmd := NewRootCmd()
+		rootCmd.SetArgs([]string{"workspace", "list", "--storage", storageDir})
+
+		var output bytes.Buffer
+		rootCmd.SetOut(&output)
+
+		if err := rootCmd.Execute(); err != nil {
+			t.Fatalf("Expected no error, got %v", err)
+		}
+
+		result := output.String()
+		if !strings.Contains(result, "AGENT/MODEL") {
+			t.Errorf("Expected table header 'AGENT/MODEL', got: %s", result)
+		}
+	})
+
+	t.Run("shows agent/model in table when model is set", func(t *testing.T) {
+		t.Parallel()
+
+		storageDir := t.TempDir()
+		sourcesDir := t.TempDir()
+
+		manager, err := instances.NewManager(storageDir)
+		if err != nil {
+			t.Fatalf("Failed to create manager: %v", err)
+		}
+
+		instance, err := instances.NewInstance(instances.NewInstanceParams{
+			SourceDir: sourcesDir,
+			ConfigDir: filepath.Join(sourcesDir, ".kaiden"),
+		})
+		if err != nil {
+			t.Fatalf("Failed to create instance: %v", err)
+		}
+
+		if err := manager.RegisterRuntime(fake.New()); err != nil {
+			t.Fatalf("Failed to register fake runtime: %v", err)
+		}
+
+		_, err = manager.Add(context.Background(), instances.AddOptions{
+			Instance:    instance,
+			RuntimeType: "fake",
+			Agent:       "claude",
+			Model:       "claude-sonnet-4-20250514",
+		})
+		if err != nil {
+			t.Fatalf("Failed to add instance: %v", err)
+		}
+
+		rootCmd := NewRootCmd()
+		rootCmd.SetArgs([]string{"workspace", "list", "--storage", storageDir})
+
+		var output bytes.Buffer
+		rootCmd.SetOut(&output)
+
+		if err := rootCmd.Execute(); err != nil {
+			t.Fatalf("Expected no error, got %v", err)
+		}
+
+		result := output.String()
+		if !strings.Contains(result, "claude/claude-sonnet-4-20250514") {
+			t.Errorf("Expected 'claude/claude-sonnet-4-20250514' in table, got: %s", result)
+		}
+	})
+
+	t.Run("shows only agent name in table when model is not set", func(t *testing.T) {
+		t.Parallel()
+
+		storageDir := t.TempDir()
+		sourcesDir := t.TempDir()
+
+		manager, err := instances.NewManager(storageDir)
+		if err != nil {
+			t.Fatalf("Failed to create manager: %v", err)
+		}
+
+		instance, err := instances.NewInstance(instances.NewInstanceParams{
+			SourceDir: sourcesDir,
+			ConfigDir: filepath.Join(sourcesDir, ".kaiden"),
+		})
+		if err != nil {
+			t.Fatalf("Failed to create instance: %v", err)
+		}
+
+		if err := manager.RegisterRuntime(fake.New()); err != nil {
+			t.Fatalf("Failed to register fake runtime: %v", err)
+		}
+
+		_, err = manager.Add(context.Background(), instances.AddOptions{
+			Instance:    instance,
+			RuntimeType: "fake",
+			Agent:       "claude",
+			// Model intentionally omitted
+		})
+		if err != nil {
+			t.Fatalf("Failed to add instance: %v", err)
+		}
+
+		rootCmd := NewRootCmd()
+		rootCmd.SetArgs([]string{"workspace", "list", "--storage", storageDir})
+
+		var output bytes.Buffer
+		rootCmd.SetOut(&output)
+
+		if err := rootCmd.Execute(); err != nil {
+			t.Fatalf("Expected no error, got %v", err)
+		}
+
+		result := output.String()
+		if !strings.Contains(result, "claude") {
+			t.Errorf("Expected 'claude' in table, got: %s", result)
+		}
+		if strings.Contains(result, "claude/") {
+			t.Errorf("Expected no slash after agent name when model is empty, got: %s", result)
+		}
+	})
+
+	t.Run("json output includes model field when model is set", func(t *testing.T) {
+		t.Parallel()
+
+		storageDir := t.TempDir()
+		sourcesDir := t.TempDir()
+
+		manager, err := instances.NewManager(storageDir)
+		if err != nil {
+			t.Fatalf("Failed to create manager: %v", err)
+		}
+
+		instance, err := instances.NewInstance(instances.NewInstanceParams{
+			SourceDir: sourcesDir,
+			ConfigDir: filepath.Join(sourcesDir, ".kaiden"),
+		})
+		if err != nil {
+			t.Fatalf("Failed to create instance: %v", err)
+		}
+
+		if err := manager.RegisterRuntime(fake.New()); err != nil {
+			t.Fatalf("Failed to register fake runtime: %v", err)
+		}
+
+		_, err = manager.Add(context.Background(), instances.AddOptions{
+			Instance:    instance,
+			RuntimeType: "fake",
+			Agent:       "claude",
+			Model:       "claude-sonnet-4-20250514",
+		})
+		if err != nil {
+			t.Fatalf("Failed to add instance: %v", err)
+		}
+
+		rootCmd := NewRootCmd()
+		rootCmd.SetArgs([]string{"workspace", "list", "--storage", storageDir, "-o", "json"})
+
+		var output bytes.Buffer
+		rootCmd.SetOut(&output)
+
+		if err := rootCmd.Execute(); err != nil {
+			t.Fatalf("Expected no error, got %v", err)
+		}
+
+		var workspacesList api.WorkspacesList
+		if err := json.Unmarshal(output.Bytes(), &workspacesList); err != nil {
+			t.Fatalf("Failed to parse JSON output: %v\nOutput: %s", err, output.String())
+		}
+
+		if len(workspacesList.Items) != 1 {
+			t.Fatalf("Expected 1 item, got %d", len(workspacesList.Items))
+		}
+
+		ws := workspacesList.Items[0]
+		if ws.Model == nil {
+			t.Fatal("Expected Model to be set in JSON output, got nil")
+		}
+		if *ws.Model != "claude-sonnet-4-20250514" {
+			t.Errorf("Expected Model %q, got %q", "claude-sonnet-4-20250514", *ws.Model)
+		}
+	})
+
+	t.Run("json output omits model field when model is not set", func(t *testing.T) {
+		t.Parallel()
+
+		storageDir := t.TempDir()
+		sourcesDir := t.TempDir()
+
+		manager, err := instances.NewManager(storageDir)
+		if err != nil {
+			t.Fatalf("Failed to create manager: %v", err)
+		}
+
+		instance, err := instances.NewInstance(instances.NewInstanceParams{
+			SourceDir: sourcesDir,
+			ConfigDir: filepath.Join(sourcesDir, ".kaiden"),
+		})
+		if err != nil {
+			t.Fatalf("Failed to create instance: %v", err)
+		}
+
+		if err := manager.RegisterRuntime(fake.New()); err != nil {
+			t.Fatalf("Failed to register fake runtime: %v", err)
+		}
+
+		_, err = manager.Add(context.Background(), instances.AddOptions{
+			Instance:    instance,
+			RuntimeType: "fake",
+			// Model intentionally omitted
+		})
+		if err != nil {
+			t.Fatalf("Failed to add instance: %v", err)
+		}
+
+		rootCmd := NewRootCmd()
+		rootCmd.SetArgs([]string{"workspace", "list", "--storage", storageDir, "-o", "json"})
+
+		var output bytes.Buffer
+		rootCmd.SetOut(&output)
+
+		if err := rootCmd.Execute(); err != nil {
+			t.Fatalf("Expected no error, got %v", err)
+		}
+
+		var workspacesList api.WorkspacesList
+		if err := json.Unmarshal(output.Bytes(), &workspacesList); err != nil {
+			t.Fatalf("Failed to parse JSON output: %v\nOutput: %s", err, output.String())
+		}
+
+		if len(workspacesList.Items) != 1 {
+			t.Fatalf("Expected 1 item, got %d", len(workspacesList.Items))
+		}
+
+		if workspacesList.Items[0].Model != nil {
+			t.Errorf("Expected Model to be nil in JSON output, got %q", *workspacesList.Items[0].Model)
+		}
+	})
+}
+
 func TestWorkspaceListCmd_Examples(t *testing.T) {
 	t.Parallel()
 

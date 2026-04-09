@@ -257,6 +257,11 @@ func (i *initCmd) run(cmd *cobra.Command, args []string) error {
 		fmt.Fprintf(out, "  Name: %s\n", addedInstance.GetName())
 		fmt.Fprintf(out, "  Project: %s\n", addedInstance.GetProject())
 		fmt.Fprintf(out, "  Agent: %s\n", addedInstance.GetAgent())
+		if model := addedInstance.GetModel(); model != "" {
+			fmt.Fprintf(out, "  Model: %s\n", model)
+		} else {
+			fmt.Fprintf(out, "  Model: (default)\n")
+		}
 		fmt.Fprintf(out, "  Sources directory: %s\n", addedInstance.GetSourceDir())
 		fmt.Fprintf(out, "  Configuration directory: %s\n", addedInstance.GetConfigDir())
 		fmt.Fprintf(out, "  State: %s\n", addedInstance.GetRuntimeData().State)

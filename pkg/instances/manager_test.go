@@ -84,6 +84,10 @@ func (f *fakeInstance) GetAgent() string {
 	return f.agent
 }
 
+func (f *fakeInstance) GetModel() string {
+	return ""
+}
+
 func (f *fakeInstance) Dump() InstanceData {
 	return InstanceData{
 		ID:   f.id,
@@ -3069,6 +3073,108 @@ func TestManager_Add_AppliesAgentModel(t *testing.T) {
 		// Verify SkipOnboarding was still called
 		if !trackingAgent.WasSkipOnboardingCalled() {
 			t.Error("SkipOnboarding() was not called")
+		}
+	})
+
+	t.Run("stores model in returned instance when specified", func(t *testing.T) {
+		t.Parallel()
+
+		storageDir := t.TempDir()
+		manager, err := NewManager(storageDir)
+		if err != nil {
+			t.Fatalf("Failed to create manager: %v", err)
+		}
+
+		if err := manager.RegisterRuntime(fake.New()); err != nil {
+			t.Fatalf("Failed to register fake runtime: %v", err)
+		}
+
+		instanceTmpDir := t.TempDir()
+		sourceDir := filepath.Join(instanceTmpDir, "source")
+		configDir := filepath.Join(instanceTmpDir, "config")
+		if err := os.MkdirAll(sourceDir, 0755); err != nil {
+			t.Fatalf("Failed to create source directory: %v", err)
+		}
+		if err := os.MkdirAll(configDir, 0755); err != nil {
+			t.Fatalf("Failed to create config directory: %v", err)
+		}
+
+		inst, err := NewInstance(NewInstanceParams{
+			SourceDir: sourceDir,
+			ConfigDir: configDir,
+		})
+		if err != nil {
+			t.Fatalf("Failed to create instance: %v", err)
+		}
+
+		added, err := manager.Add(context.Background(), AddOptions{
+			Instance:    inst,
+			RuntimeType: "fake",
+			Model:       "claude-sonnet-4-20250514",
+		})
+		if err != nil {
+			t.Fatalf("Add() error = %v", err)
+		}
+
+		if added.GetModel() != "claude-sonnet-4-20250514" {
+			t.Errorf("GetModel() = %q, want %q", added.GetModel(), "claude-sonnet-4-20250514")
+		}
+
+		// Verify model is persisted: reload and check
+		instances, err := manager.List()
+		if err != nil {
+			t.Fatalf("List() error = %v", err)
+		}
+		if len(instances) != 1 {
+			t.Fatalf("Expected 1 instance, got %d", len(instances))
+		}
+		if instances[0].GetModel() != "claude-sonnet-4-20250514" {
+			t.Errorf("GetModel() after reload = %q, want %q", instances[0].GetModel(), "claude-sonnet-4-20250514")
+		}
+	})
+
+	t.Run("stores empty model in returned instance when not specified", func(t *testing.T) {
+		t.Parallel()
+
+		storageDir := t.TempDir()
+		manager, err := NewManager(storageDir)
+		if err != nil {
+			t.Fatalf("Failed to create manager: %v", err)
+		}
+
+		if err := manager.RegisterRuntime(fake.New()); err != nil {
+			t.Fatalf("Failed to register fake runtime: %v", err)
+		}
+
+		instanceTmpDir := t.TempDir()
+		sourceDir := filepath.Join(instanceTmpDir, "source")
+		configDir := filepath.Join(instanceTmpDir, "config")
+		if err := os.MkdirAll(sourceDir, 0755); err != nil {
+			t.Fatalf("Failed to create source directory: %v", err)
+		}
+		if err := os.MkdirAll(configDir, 0755); err != nil {
+			t.Fatalf("Failed to create config directory: %v", err)
+		}
+
+		inst, err := NewInstance(NewInstanceParams{
+			SourceDir: sourceDir,
+			ConfigDir: configDir,
+		})
+		if err != nil {
+			t.Fatalf("Failed to create instance: %v", err)
+		}
+
+		added, err := manager.Add(context.Background(), AddOptions{
+			Instance:    inst,
+			RuntimeType: "fake",
+			// Model intentionally omitted
+		})
+		if err != nil {
+			t.Fatalf("Add() error = %v", err)
+		}
+
+		if added.GetModel() != "" {
+			t.Errorf("GetModel() = %q, want empty string", added.GetModel())
 		}
 	})
 

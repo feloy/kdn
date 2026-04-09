@@ -74,6 +74,9 @@ type InstanceData struct {
 	// Agent is the agent name for this instance (e.g., "claude", "goose").
 	// This is used to load agent-specific configuration and determine which agent command to run.
 	Agent string `json:"agent"`
+	// Model is the model ID configured for the agent (e.g., "claude-sonnet-4-20250514").
+	// Empty string means no model was explicitly specified.
+	Model string `json:"model,omitempty"`
 }
 
 // Instance represents a workspace instance with source and configuration directories.
@@ -100,6 +103,8 @@ type Instance interface {
 	GetProject() string
 	// GetAgent returns the agent name for this instance
 	GetAgent() string
+	// GetModel returns the model ID for this instance (empty if not set)
+	GetModel() string
 	// Dump returns the serializable data of the instance
 	Dump() InstanceData
 }
@@ -122,6 +127,8 @@ type instance struct {
 	Project string
 	// Agent is the agent name for this instance
 	Agent string
+	// Model is the model ID configured for the agent (empty if not set)
+	Model string
 }
 
 // Compile-time check to ensure instance implements Instance interface
@@ -185,6 +192,11 @@ func (i *instance) GetAgent() string {
 	return i.Agent
 }
 
+// GetModel returns the model ID for this instance (empty if not set)
+func (i *instance) GetModel() string {
+	return i.Model
+}
+
 // Dump returns the serializable data of the instance
 func (i *instance) Dump() InstanceData {
 	return InstanceData{
@@ -197,6 +209,7 @@ func (i *instance) Dump() InstanceData {
 		Runtime: i.Runtime,
 		Project: i.Project,
 		Agent:   i.Agent,
+		Model:   i.Model,
 	}
 }
 
@@ -264,6 +277,7 @@ func NewInstanceFromData(data InstanceData) (Instance, error) {
 		Runtime:   data.Runtime,
 		Project:   data.Project,
 		Agent:     data.Agent,
+		Model:     data.Model,
 	}, nil
 }
 
