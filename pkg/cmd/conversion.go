@@ -36,7 +36,7 @@ func instanceToWorkspaceId(instance instances.Instance) api.WorkspaceId {
 
 // instanceToWorkspace converts an Instance to an api.Workspace
 func instanceToWorkspace(instance instances.Instance) api.Workspace {
-	return api.Workspace{
+	ws := api.Workspace{
 		Id:      instance.GetID(),
 		Name:    instance.GetName(),
 		Project: instance.GetProject(),
@@ -47,6 +47,10 @@ func instanceToWorkspace(instance instances.Instance) api.Workspace {
 			Source:        instance.GetSourceDir(),
 		},
 	}
+	if model := instance.GetModel(); model != "" {
+		ws.Model = &model
+	}
+	return ws
 }
 
 // formatErrorJSON formats an error as JSON using api.Error schema

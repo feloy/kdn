@@ -1899,6 +1899,144 @@ func TestInitCmd_E2E(t *testing.T) {
 		}
 	})
 
+	t.Run("model is stored in instance when --model flag is used", func(t *testing.T) {
+		t.Parallel()
+
+		storageDir := t.TempDir()
+		sourcesDir := t.TempDir()
+		modelID := "claude-sonnet-4-20250514"
+
+		rootCmd := NewRootCmd()
+		rootCmd.SetArgs([]string{"--storage", storageDir, "init", "--runtime", "fake", "--agent", "test-agent", sourcesDir, "--model", modelID})
+
+		err := rootCmd.Execute()
+		if err != nil {
+			t.Fatalf("Execute() failed: %v", err)
+		}
+
+		manager, err := instances.NewManager(storageDir)
+		if err != nil {
+			t.Fatalf("Failed to create manager: %v", err)
+		}
+
+		instancesList, err := manager.List()
+		if err != nil {
+			t.Fatalf("Failed to list instances: %v", err)
+		}
+
+		if len(instancesList) != 1 {
+			t.Fatalf("Expected 1 instance, got %d", len(instancesList))
+		}
+
+		if instancesList[0].GetModel() != modelID {
+			t.Errorf("Expected model %q, got %q", modelID, instancesList[0].GetModel())
+		}
+	})
+
+	t.Run("verbose output shows model when set", func(t *testing.T) {
+		t.Parallel()
+
+		storageDir := t.TempDir()
+		sourcesDir := t.TempDir()
+		modelID := "claude-sonnet-4-20250514"
+
+		rootCmd := NewRootCmd()
+		buf := new(bytes.Buffer)
+		rootCmd.SetOut(buf)
+		rootCmd.SetArgs([]string{"--storage", storageDir, "init", "--runtime", "fake", "--agent", "test-agent", sourcesDir, "--model", modelID, "--verbose"})
+
+		err := rootCmd.Execute()
+		if err != nil {
+			t.Fatalf("Execute() failed: %v", err)
+		}
+
+		output := buf.String()
+		if !strings.Contains(output, "Model:") {
+			t.Errorf("Expected verbose output to contain 'Model:', got: %s", output)
+		}
+		if !strings.Contains(output, modelID) {
+			t.Errorf("Expected verbose output to contain model ID %q, got: %s", modelID, output)
+		}
+	})
+
+	t.Run("verbose output shows (default) when model not set", func(t *testing.T) {
+		t.Parallel()
+
+		storageDir := t.TempDir()
+		sourcesDir := t.TempDir()
+
+		rootCmd := NewRootCmd()
+		buf := new(bytes.Buffer)
+		rootCmd.SetOut(buf)
+		rootCmd.SetArgs([]string{"--storage", storageDir, "init", "--runtime", "fake", "--agent", "test-agent", sourcesDir, "--verbose"})
+
+		err := rootCmd.Execute()
+		if err != nil {
+			t.Fatalf("Execute() failed: %v", err)
+		}
+
+		output := buf.String()
+		if !strings.Contains(output, "Model: (default)") {
+			t.Errorf("Expected verbose output to contain 'Model: (default)', got: %s", output)
+		}
+	})
+
+	t.Run("json verbose output includes model field when set", func(t *testing.T) {
+		t.Parallel()
+
+		storageDir := t.TempDir()
+		sourcesDir := t.TempDir()
+		modelID := "claude-sonnet-4-20250514"
+
+		rootCmd := NewRootCmd()
+		buf := new(bytes.Buffer)
+		rootCmd.SetOut(buf)
+		rootCmd.SetArgs([]string{"--storage", storageDir, "init", "--runtime", "fake", "--agent", "test-agent", sourcesDir, "--model", modelID, "--output", "json", "--verbose"})
+
+		err := rootCmd.Execute()
+		if err != nil {
+			t.Fatalf("Execute() failed: %v", err)
+		}
+
+		var workspace api.Workspace
+		if err := json.Unmarshal(buf.Bytes(), &workspace); err != nil {
+			t.Fatalf("Failed to unmarshal JSON: %v", err)
+		}
+
+		if workspace.Model == nil {
+			t.Fatal("Expected Model to be set in JSON output, got nil")
+		}
+		if *workspace.Model != modelID {
+			t.Errorf("Expected Model %q in JSON output, got %q", modelID, *workspace.Model)
+		}
+	})
+
+	t.Run("json verbose output omits model field when not set", func(t *testing.T) {
+		t.Parallel()
+
+		storageDir := t.TempDir()
+		sourcesDir := t.TempDir()
+
+		rootCmd := NewRootCmd()
+		buf := new(bytes.Buffer)
+		rootCmd.SetOut(buf)
+		rootCmd.SetArgs([]string{"--storage", storageDir, "init", "--runtime", "fake", "--agent", "test-agent", sourcesDir, "--output", "json", "--verbose"})
+
+		err := rootCmd.Execute()
+		if err != nil {
+			t.Fatalf("Execute() failed: %v", err)
+		}
+
+		var parsed map[string]interface{}
+		if err := json.Unmarshal(buf.Bytes(), &parsed); err != nil {
+			t.Fatalf("Failed to unmarshal JSON: %v", err)
+		}
+
+		if _, exists := parsed["model"]; exists {
+			t.Error("Expected 'model' field to be absent from JSON when not set")
+		}
+	})
+
 	t.Run("registers and starts workspace with --start flag", func(t *testing.T) {
 		t.Parallel()
 

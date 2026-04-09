@@ -756,7 +756,7 @@ Exit code: `0` (success)
 **Step 3: Register with verbose output to get full details**
 
 ```bash
-$ kdn init /path/to/another-project --runtime podman --agent claude -o json -v
+$ kdn init /path/to/another-project --runtime podman --agent claude --model claude-sonnet-4-20250514 -o json -v
 ```
 
 ```json
@@ -764,6 +764,7 @@ $ kdn init /path/to/another-project --runtime podman --agent claude -o json -v
   "id": "f6e5d4c3b2a1098765432109876543210987654321098765432109876543210a",
   "name": "another-project",
   "agent": "claude",
+  "model": "claude-sonnet-4-20250514",
   "project": "/absolute/path/to/another-project",
   "state": "stopped",
   "paths": {
@@ -813,6 +814,7 @@ $ kdn workspace list -o json
       "id": "f6e5d4c3b2a1098765432109876543210987654321098765432109876543210a",
       "name": "another-project",
       "agent": "claude",
+      "model": "claude-sonnet-4-20250514",
       "project": "/absolute/path/to/another-project",
       "state": "stopped",
       "paths": {
@@ -881,6 +883,7 @@ $ kdn workspace list -o json
       "id": "f6e5d4c3b2a1098765432109876543210987654321098765432109876543210a",
       "name": "another-project",
       "agent": "claude",
+      "model": "claude-sonnet-4-20250514",
       "project": "/absolute/path/to/another-project",
       "state": "stopped",
       "paths": {
@@ -1997,6 +2000,24 @@ Registered workspace:
   Name: myproject
   Project: /absolute/path/to/myproject
   Agent: claude
+  Model: (default)
+  Sources directory: /absolute/path/to/myproject
+  Configuration directory: /absolute/path/to/myproject/.kaiden
+  State: stopped
+```
+
+**View detailed output with a specific model:**
+```bash
+kdn init --runtime podman --agent claude --model claude-sonnet-4-20250514 --verbose
+```
+Output:
+```text
+Registered workspace:
+  ID: a1b2c3d4e5f6...
+  Name: myproject
+  Project: /absolute/path/to/myproject
+  Agent: claude
+  Model: claude-sonnet-4-20250514
   Sources directory: /absolute/path/to/myproject
   Configuration directory: /absolute/path/to/myproject/.kaiden
   State: stopped
@@ -2023,6 +2044,26 @@ Output:
   "id": "a1b2c3d4e5f6...",
   "name": "myproject",
   "agent": "claude",
+  "project": "/absolute/path/to/myproject",
+  "state": "stopped",
+  "paths": {
+    "source": "/absolute/path/to/myproject",
+    "configuration": "/absolute/path/to/myproject/.kaiden"
+  }
+}
+```
+
+**JSON output with verbose flag and a specific model:**
+```bash
+kdn init /path/to/myproject --runtime podman --agent claude --model claude-sonnet-4-20250514 --output json --verbose
+```
+Output:
+```json
+{
+  "id": "a1b2c3d4e5f6...",
+  "name": "myproject",
+  "agent": "claude",
+  "model": "claude-sonnet-4-20250514",
   "project": "/absolute/path/to/myproject",
   "state": "stopped",
   "paths": {
@@ -2146,7 +2187,7 @@ kdn init /tmp/workspace --runtime podman --agent claude
 - The default configuration directory (`.kaiden`) is created inside the sources directory unless specified otherwise
 - JSON output format is useful for scripting and automation
 - Without `--verbose`, JSON output returns only the workspace ID
-- With `--verbose`, JSON output includes full workspace details (ID, name, agent, paths)
+- With `--verbose`, JSON output includes full workspace details (ID, name, agent, model, paths); the `model` field is only present when a model was explicitly set with `--model`
 - Use `--show-logs` to display the full stdout and stderr from runtime commands (e.g., `podman build` output during image creation)
 - **JSON error handling**: When `--output json` is used, errors are written to stdout (not stderr) in JSON format, and the CLI exits with code 1. Always check the exit code to determine success/failure
 
@@ -2174,22 +2215,12 @@ kdn workspace list
 ```
 Output:
 ```text
-ID: a1b2c3d4e5f6...
-  Name: myproject
-  Project: /absolute/path/to/myproject
-  Agent: claude
-  Sources: /absolute/path/to/myproject
-  Configuration: /absolute/path/to/myproject/.kaiden
-  State: running
-
-ID: f6e5d4c3b2a1...
-  Name: another-project
-  Project: /absolute/path/to/another-project
-  Agent: goose
-  Sources: /absolute/path/to/another-project
-  Configuration: /absolute/path/to/another-project/.kaiden
-  State: stopped
+NAME             SHORT ID      PROJECT                              SOURCES                              AGENT/MODEL                            STATE
+myproject        a1b2c3d4e5f6  /absolute/path/to/myproject          /absolute/path/to/myproject          claude/claude-sonnet-4-20250514        running
+another-project  f6e5d4c3b2a1  /absolute/path/to/another-project    /absolute/path/to/another-project    goose                                  stopped
 ```
+
+When a model is specified, the `AGENT/MODEL` column shows `agent/model` (e.g. `claude/claude-sonnet-4-20250514`). When no model is set, only the agent name is displayed (e.g. `goose`).
 
 **Use the short alias:**
 ```bash
@@ -2208,6 +2239,7 @@ Output:
       "id": "a1b2c3d4e5f6...",
       "name": "myproject",
       "agent": "claude",
+      "model": "claude-sonnet-4-20250514",
       "project": "/absolute/path/to/myproject",
       "state": "running",
       "paths": {
@@ -2230,6 +2262,8 @@ Output:
 }
 ```
 
+The `model` field is only present when a model was explicitly specified during `init` with the `--model` flag. When no model is set, the field is omitted from the JSON output.
+
 **List with short flag:**
 ```bash
 kdn list -o json
@@ -2238,6 +2272,8 @@ kdn list -o json
 #### Notes
 
 - When no workspaces are registered, the command displays "No workspaces registered"
+- The `AGENT/MODEL` column shows `agent/model` (e.g. `claude/claude-sonnet-4-20250514`) when a model was set at registration time, or just the agent name (e.g. `claude`) when no model was specified
+- In JSON output, the `model` field is only present when a model was explicitly set with `--model` during `init`
 - The JSON output format is useful for scripting and automation
 - All paths are displayed as absolute paths for consistency
 - **JSON error handling**: When `--output json` is used, errors are written to stdout (not stderr) in JSON format, and the CLI exits with code 1. Always check the exit code to determine success/failure

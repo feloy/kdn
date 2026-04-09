@@ -262,7 +262,7 @@ func (m *manager) Add(ctx context.Context, opts AddOptions) (Instance, error) {
 		return nil, fmt.Errorf("runtime %q returned invalid state: %w", opts.RuntimeType, err)
 	}
 
-	// Create a new instance with the unique ID, name, runtime info, project, and agent
+	// Create a new instance with the unique ID, name, runtime info, project, agent, and model
 	instanceWithID := &instance{
 		ID:        uniqueID,
 		Name:      name,
@@ -276,6 +276,7 @@ func (m *manager) Add(ctx context.Context, opts AddOptions) (Instance, error) {
 		},
 		Project: project,
 		Agent:   opts.Agent,
+		Model:   opts.Model,
 	}
 
 	instances = append(instances, instanceWithID)
@@ -349,6 +350,7 @@ func (m *manager) Start(ctx context.Context, id string) error {
 		},
 		Project: instanceToStart.GetProject(),
 		Agent:   instanceToStart.GetAgent(),
+		Model:   instanceToStart.GetModel(),
 	}
 
 	instances[index] = updatedInstance
@@ -424,6 +426,7 @@ func (m *manager) Stop(ctx context.Context, id string) error {
 		},
 		Project: instanceToStop.GetProject(),
 		Agent:   instanceToStop.GetAgent(),
+		Model:   instanceToStop.GetModel(),
 	}
 
 	instances[index] = updatedInstance

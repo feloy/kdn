@@ -43,6 +43,7 @@ type fakeInstance struct {
 	runtime    RuntimeData
 	project    string
 	agent      string
+	model      string
 }
 
 // Compile-time check to ensure fakeInstance implements Instance interface
@@ -84,6 +85,10 @@ func (f *fakeInstance) GetAgent() string {
 	return f.agent
 }
 
+func (f *fakeInstance) GetModel() string {
+	return f.model
+}
+
 func (f *fakeInstance) Dump() InstanceData {
 	return InstanceData{
 		ID:   f.id,
@@ -108,6 +113,7 @@ type newFakeInstanceParams struct {
 	Runtime    RuntimeData
 	Project    string
 	Agent      string
+	Model      string
 }
 
 // newFakeInstance creates a new fake instance for testing
@@ -121,6 +127,7 @@ func newFakeInstance(params newFakeInstanceParams) Instance {
 		runtime:    params.Runtime,
 		project:    params.Project,
 		agent:      params.Agent,
+		model:      params.Model,
 	}
 }
 
@@ -149,6 +156,7 @@ func fakeInstanceFactory(data InstanceData) (Instance, error) {
 		runtime:    data.Runtime,
 		project:    data.Project,
 		agent:      data.Agent,
+		model:      data.Model,
 	}, nil
 }
 
@@ -1051,6 +1059,31 @@ func TestManager_Start(t *testing.T) {
 			t.Errorf("State from new manager = %v, want 'running'", retrieved.GetRuntimeData().State)
 		}
 	})
+
+	t.Run("preserves model after start", func(t *testing.T) {
+		t.Parallel()
+
+		ctx := context.Background()
+		tmpDir := t.TempDir()
+		manager, _ := newManagerWithFactory(tmpDir, fakeInstanceFactory, newFakeGenerator(), newTestRegistry(tmpDir), agent.NewRegistry(), newFakeGitDetector())
+
+		instanceTmpDir := t.TempDir()
+		inst := newFakeInstance(newFakeInstanceParams{
+			SourceDir:  filepath.Join(instanceTmpDir, "source"),
+			ConfigDir:  filepath.Join(instanceTmpDir, "config"),
+			Accessible: true,
+		})
+		added, _ := manager.Add(ctx, AddOptions{Instance: inst, RuntimeType: "fake", Model: "claude-sonnet-4-20250514"})
+
+		if err := manager.Start(ctx, added.GetID()); err != nil {
+			t.Fatalf("Start() unexpected error = %v", err)
+		}
+
+		updated, _ := manager.Get(added.GetID())
+		if updated.GetModel() != "claude-sonnet-4-20250514" {
+			t.Errorf("After Start, GetModel() = %q, want %q", updated.GetModel(), "claude-sonnet-4-20250514")
+		}
+	})
 }
 
 func TestManager_Stop(t *testing.T) {
@@ -1277,6 +1310,34 @@ func TestManager_Stop(t *testing.T) {
 		updated, _ := manager.Get(added.GetID())
 		if updated.GetProject() != "https://github.com/kortex-hub/kortex-cli/" {
 			t.Errorf("After Stop, project = %v, want 'https://github.com/kortex-hub/kortex-cli/'", updated.GetProject())
+		}
+	})
+
+	t.Run("preserves model after stop", func(t *testing.T) {
+		t.Parallel()
+
+		ctx := context.Background()
+		tmpDir := t.TempDir()
+		manager, _ := newManagerWithFactory(tmpDir, fakeInstanceFactory, newFakeGenerator(), newTestRegistry(tmpDir), agent.NewRegistry(), newFakeGitDetector())
+
+		instanceTmpDir := t.TempDir()
+		inst := newFakeInstance(newFakeInstanceParams{
+			SourceDir:  filepath.Join(instanceTmpDir, "source"),
+			ConfigDir:  filepath.Join(instanceTmpDir, "config"),
+			Accessible: true,
+		})
+		added, _ := manager.Add(ctx, AddOptions{Instance: inst, RuntimeType: "fake", Model: "claude-sonnet-4-20250514"})
+
+		if err := manager.Start(ctx, added.GetID()); err != nil {
+			t.Fatalf("Start() unexpected error = %v", err)
+		}
+		if err := manager.Stop(ctx, added.GetID()); err != nil {
+			t.Fatalf("Stop() unexpected error = %v", err)
+		}
+
+		updated, _ := manager.Get(added.GetID())
+		if updated.GetModel() != "claude-sonnet-4-20250514" {
+			t.Errorf("After Stop, GetModel() = %q, want %q", updated.GetModel(), "claude-sonnet-4-20250514")
 		}
 	})
 }
@@ -3069,6 +3130,108 @@ func TestManager_Add_AppliesAgentModel(t *testing.T) {
 		// Verify SkipOnboarding was still called
 		if !trackingAgent.WasSkipOnboardingCalled() {
 			t.Error("SkipOnboarding() was not called")
+		}
+	})
+
+	t.Run("stores model in returned instance when specified", func(t *testing.T) {
+		t.Parallel()
+
+		storageDir := t.TempDir()
+		manager, err := NewManager(storageDir)
+		if err != nil {
+			t.Fatalf("Failed to create manager: %v", err)
+		}
+
+		if err := manager.RegisterRuntime(fake.New()); err != nil {
+			t.Fatalf("Failed to register fake runtime: %v", err)
+		}
+
+		instanceTmpDir := t.TempDir()
+		sourceDir := filepath.Join(instanceTmpDir, "source")
+		configDir := filepath.Join(instanceTmpDir, "config")
+		if err := os.MkdirAll(sourceDir, 0755); err != nil {
+			t.Fatalf("Failed to create source directory: %v", err)
+		}
+		if err := os.MkdirAll(configDir, 0755); err != nil {
+			t.Fatalf("Failed to create config directory: %v", err)
+		}
+
+		inst, err := NewInstance(NewInstanceParams{
+			SourceDir: sourceDir,
+			ConfigDir: configDir,
+		})
+		if err != nil {
+			t.Fatalf("Failed to create instance: %v", err)
+		}
+
+		added, err := manager.Add(context.Background(), AddOptions{
+			Instance:    inst,
+			RuntimeType: "fake",
+			Model:       "claude-sonnet-4-20250514",
+		})
+		if err != nil {
+			t.Fatalf("Add() error = %v", err)
+		}
+
+		if added.GetModel() != "claude-sonnet-4-20250514" {
+			t.Errorf("GetModel() = %q, want %q", added.GetModel(), "claude-sonnet-4-20250514")
+		}
+
+		// Verify model is persisted: reload and check
+		instances, err := manager.List()
+		if err != nil {
+			t.Fatalf("List() error = %v", err)
+		}
+		if len(instances) != 1 {
+			t.Fatalf("Expected 1 instance, got %d", len(instances))
+		}
+		if instances[0].GetModel() != "claude-sonnet-4-20250514" {
+			t.Errorf("GetModel() after reload = %q, want %q", instances[0].GetModel(), "claude-sonnet-4-20250514")
+		}
+	})
+
+	t.Run("stores empty model in returned instance when not specified", func(t *testing.T) {
+		t.Parallel()
+
+		storageDir := t.TempDir()
+		manager, err := NewManager(storageDir)
+		if err != nil {
+			t.Fatalf("Failed to create manager: %v", err)
+		}
+
+		if err := manager.RegisterRuntime(fake.New()); err != nil {
+			t.Fatalf("Failed to register fake runtime: %v", err)
+		}
+
+		instanceTmpDir := t.TempDir()
+		sourceDir := filepath.Join(instanceTmpDir, "source")
+		configDir := filepath.Join(instanceTmpDir, "config")
+		if err := os.MkdirAll(sourceDir, 0755); err != nil {
+			t.Fatalf("Failed to create source directory: %v", err)
+		}
+		if err := os.MkdirAll(configDir, 0755); err != nil {
+			t.Fatalf("Failed to create config directory: %v", err)
+		}
+
+		inst, err := NewInstance(NewInstanceParams{
+			SourceDir: sourceDir,
+			ConfigDir: configDir,
+		})
+		if err != nil {
+			t.Fatalf("Failed to create instance: %v", err)
+		}
+
+		added, err := manager.Add(context.Background(), AddOptions{
+			Instance:    inst,
+			RuntimeType: "fake",
+			// Model intentionally omitted
+		})
+		if err != nil {
+			t.Fatalf("Add() error = %v", err)
+		}
+
+		if added.GetModel() != "" {
+			t.Errorf("GetModel() = %q, want empty string", added.GetModel())
 		}
 	})
 
