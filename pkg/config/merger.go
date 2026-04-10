@@ -375,14 +375,21 @@ func copyMCP(mcp *workspace.McpConfiguration) *workspace.McpConfiguration {
 		for i, cmd := range *mcp.Commands {
 			cmdsCopy[i] = deepCopyMcpCommand(cmd)
 		}
-		result.Commands = &cmdsCopy
+		if len(cmdsCopy) > 0 {
+			result.Commands = &cmdsCopy
+		}
 	}
 	if mcp.Servers != nil {
 		srvsCopy := make([]workspace.McpServer, len(*mcp.Servers))
 		for i, srv := range *mcp.Servers {
 			srvsCopy[i] = deepCopyMcpServer(srv)
 		}
-		result.Servers = &srvsCopy
+		if len(srvsCopy) > 0 {
+			result.Servers = &srvsCopy
+		}
+	}
+	if result.Commands == nil && result.Servers == nil {
+		return nil
 	}
 	return result
 }
