@@ -67,7 +67,8 @@ The `Add()` method:
 5. Reads agent settings files from `<storage-dir>/config/<agent>/` into `map[string][]byte`
 6. Calls agent's `SkipOnboarding()` method if agent is registered (e.g., Claude agent automatically sets onboarding flags)
 7. Calls agent's `SetModel()` method if model is specified (takes precedence over model in settings files)
-8. Passes merged config and modified agent settings to runtime for injection into workspace
+8. Calls agent's `SetMCPServers()` method if the merged config contains MCP servers (writes them into agent settings)
+9. Passes merged config and modified agent settings to runtime for injection into workspace
 
 ### List - Get All Instances
 
@@ -310,6 +311,8 @@ For the Claude agent, `SkipOnboarding()` automatically:
 - Sets `hasCompletedOnboarding: true` to skip the first-run wizard
 - Adds `hasTrustDialogAccepted: true` for the workspace sources directory
 - Preserves any custom settings you've configured (theme, preferences, etc.)
+
+`SetMCPServers()` writes MCP server entries into `.claude.json` at the top-level `mcpServers` key (user scope). Command-based servers use `type: "stdio"`, URL-based servers use `type: "sse"`. Existing MCP server entries in the file are preserved.
 
 **Graceful Fallback:**
 

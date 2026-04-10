@@ -1,6 +1,6 @@
 ---
 name: working-with-config-system
-description: Guide to workspace configuration for environment variables, mount points, and skills at multiple levels
+description: Guide to workspace configuration for environment variables, mount points, skills and MCP servers at multiple levels
 argument-hint: ""
 ---
 
@@ -12,6 +12,7 @@ The config system manages **workspace configuration** for injecting environment 
 - Environment variables to inject into workspace containers/VMs
 - Additional directories to mount, with explicit host and container paths
 - Skills directories to provide to agents inside the workspace
+- MCP servers to configure in the agent (command-based and URL-based)
 
 **What this does NOT control:**
 - Runtime-specific settings (e.g., Podman container image, packages to install)
@@ -69,7 +70,17 @@ When the `--model` flag is provided during `init`, kdn does two things with the 
 
 The `--model` flag takes precedence over any model already defined in the settings files. If no model is specified, `GetModel()` returns an empty string and the `model` field is omitted from JSON output.
 
-**Implementation:** `manager.readAgentSettings(storageDir, agentName)` in `pkg/instances/manager.go` walks this directory and returns a `map[string][]byte` (relative forward-slash path → content). If the agent is registered in the agent registry, the manager calls the agent's `SkipOnboarding()` method to modify the settings. If a model ID is provided, the manager then calls the agent's `SetModel()` method to configure the model in the appropriate settings file. The final map is passed to the runtime via `runtime.CreateParams.AgentSettings`. The Podman runtime writes the files into the build context and adds a `COPY --chown=agent:agent agent-settings/. /home/agent/` instruction to the Containerfile. The model is also stored directly in the `instance` struct and persisted in `instances.json` via `InstanceData.Model`.
+**MCP Server Configuration:**
+
+When the merged workspace configuration contains an `mcp` field, the manager calls the agent's `SetMCPServers()` method to write the MCP servers into the agent settings:
+- Claude: writes `mcpServers` entries into `.claude.json` at the top-level (user scope)
+  - Command-based servers use `type: "stdio"` with `command`, `args`, and `env`
+  - URL-based servers use `type: "sse"` with `url` and optional `headers`
+- Goose and Cursor: no-op (MCP configuration through settings files not supported)
+
+MCP servers from all configuration levels are merged before being passed to the agent, with higher-precedence levels overriding lower ones by server `name`.
+
+**Implementation:** `manager.readAgentSettings(storageDir, agentName)` in `pkg/instances/manager.go` walks this directory and returns a `map[string][]byte` (relative forward-slash path → content). If the agent is registered in the agent registry, the manager calls the agent's `SkipOnboarding()` method to modify the settings. If a model ID is provided, the manager then calls the agent's `SetModel()` method. If the merged config contains MCP servers, the manager calls the agent's `SetMCPServers()` method. The final map is passed to the runtime via `runtime.CreateParams.AgentSettings`. The Podman runtime writes the files into the build context and adds a `COPY --chown=agent:agent agent-settings/. /home/agent/` instruction to the Containerfile. The model is also stored directly in the `instance` struct and persisted in `instances.json` via `InstanceData.Model`.
 
 ## Key Components
 
@@ -124,7 +135,24 @@ The `workspace.json` file controls what gets injected into the workspace:
   "skills": [
     "/absolute/path/to/commit-skill",
     "$HOME/review-skill"
-  ]
+  ],
+  "mcp": {
+    "commands": [
+      {
+        "name": "my-tool",
+        "command": "npx",
+        "args": ["-y", "@modelcontextprotocol/server-filesystem", "/workspace/sources"],
+        "env": {"NODE_ENV": "production"}
+      }
+    ],
+    "servers": [
+      {
+        "name": "remote-api",
+        "url": "https://api.example.com/mcp",
+        "headers": {"Authorization": "Bearer token123"}
+      }
+    ]
+  }
 }
 ```
 
@@ -155,6 +183,17 @@ kdn init /path/to/workspace --workspace-configuration /path/to/config-dir
   - Paths must be absolute or start with `$HOME` (`$SOURCES` is not supported)
   - Each directory is mounted read-only into the agent's skills directory using the directory's basename as the skill name
   - The target path is agent-specific (e.g., `$HOME/.claude/skills/<basename>/` for Claude Code)
+- `mcp` - MCP server configuration to inject into the agent's settings (optional)
+  - `commands` - List of local command-based MCP servers (stdio transport)
+    - `name` - Unique server name (required, must be unique across both `commands` and `servers`)
+    - `command` - Executable to launch (required, e.g., `npx`, `python3`)
+    - `args` - Arguments to pass to the command (optional)
+    - `env` - Environment variables for the process (optional)
+  - `servers` - List of remote URL-based MCP servers (SSE transport)
+    - `name` - Unique server name (required, must be unique across both `commands` and `servers`)
+    - `url` - SSE endpoint URL (required)
+    - `headers` - HTTP headers to send with requests, e.g., for auth (optional)
+  - Names must be globally unique across both `commands` and `servers` because agents flatten both lists into a single `mcpServers` map
 
 ### Agent Configuration (`agents.json`)
 
@@ -303,6 +342,8 @@ The Manager's `Add()` method:
   - If the same variable appears in multiple configs, the one from the higher-precedence config wins
 - **Mounts**: Deduplicated by `host`+`target` pair (preserves order, removes duplicates)
 - **Skills**: Deduplicated by path value (preserves order, base skills first then override)
+- **MCP servers**: Merged separately for commands and servers, each deduplicated by `name`
+  - Higher-precedence configs override lower ones when the same name appears in both
 
 **Example Merge Flow:**
 
@@ -358,6 +399,14 @@ The `Load()` method automatically validates the configuration and returns `ErrIn
 - Each entry cannot be empty
 - Each path must be an absolute path or start with `$HOME` (`$SOURCES` is not supported)
 - Duplicate paths (within or across config levels) are deduplicated by the merger
+
+### MCP Servers
+
+- Command `name` cannot be empty
+- Command `command` field cannot be empty
+- Server `name` cannot be empty
+- Server `url` field cannot be empty
+- Names must be unique across **both** `commands` and `servers` combined — a command and a server cannot share the same name, since all entries map to the same flat `mcpServers` key in the agent settings
 
 ## Error Handling
 

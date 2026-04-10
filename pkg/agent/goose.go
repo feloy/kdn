@@ -22,6 +22,7 @@ import (
 	"fmt"
 
 	"github.com/goccy/go-yaml"
+	workspace "github.com/openkaiden/kdn-api/workspace-configuration/go"
 )
 
 const (
@@ -84,6 +85,12 @@ func (g *gooseAgent) SkipOnboarding(settings map[string][]byte, _ string) (map[s
 // SkillsDir returns the container path under which skill directories are mounted for Goose.
 func (g *gooseAgent) SkillsDir() string {
 	return "$HOME/.agents/skills"
+}
+
+// SetMCPServers returns the settings unchanged, as Goose does not support MCP configuration
+// through agent settings files.
+func (g *gooseAgent) SetMCPServers(settings map[string][]byte, _ *workspace.McpConfiguration) (map[string][]byte, error) {
+	return settings, nil
 }
 
 // SetModel configures the model ID in Goose settings.

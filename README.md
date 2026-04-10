@@ -1429,7 +1429,24 @@ The `workspace.json` file uses a nested JSON structure:
   "skills": [
     "/absolute/path/to/commit-skill",
     "$HOME/review-skill"
-  ]
+  ],
+  "mcp": {
+    "commands": [
+      {
+        "name": "my-local-tool",
+        "command": "python3",
+        "args": ["/workspace/sources/scripts/mcp_server.py"],
+        "env": {"DEBUG": "true"}
+      }
+    ],
+    "servers": [
+      {
+        "name": "remote-api",
+        "url": "https://api.example.com/mcp",
+        "headers": {"Authorization": "Bearer token123"}
+      }
+    ]
+  }
 }
 ```
 
@@ -1548,6 +1565,56 @@ For example, a skills path of `/home/user/commit-skill` is mounted at `~/.claude
 - Each path must be an absolute path or start with `$HOME`
 - `$SOURCES`-based paths are not supported for skills
 
+### MCP Servers
+
+Configure MCP (Model Context Protocol) servers to give the agent access to external tools and data sources. Two types are supported:
+
+- **Commands** — local MCP servers launched by the agent inside the workspace using stdio transport
+- **Servers** — remote MCP servers accessed over SSE (Server-Sent Events)
+
+**Structure:**
+```json
+{
+  "mcp": {
+    "commands": [
+      {
+        "name": "my-tool",
+        "command": "npx",
+        "args": ["-y", "@modelcontextprotocol/server-filesystem", "/workspace/sources"],
+        "env": {"NODE_ENV": "production"}
+      }
+    ],
+    "servers": [
+      {
+        "name": "remote-api",
+        "url": "https://api.example.com/mcp",
+        "headers": {"Authorization": "Bearer token123"}
+      }
+    ]
+  }
+}
+```
+
+**Command fields** (`commands[*]`):
+- `name` (required) - Unique name for this MCP server
+- `command` (required) - Executable to run (e.g., `npx`, `python3`, `node`)
+- `args` (optional) - Arguments to pass to the command
+- `env` (optional) - Environment variables to set for the process
+
+**Server fields** (`servers[*]`):
+- `name` (required) - Unique name for this MCP server
+- `url` (required) - SSE endpoint URL of the remote MCP server
+- `headers` (optional) - HTTP headers to include in requests (e.g., `Authorization`)
+
+**Agent support:**
+
+MCP server configuration is applied to agents that support it at workspace registration time. For **Claude Code**, both command-based and URL-based MCP servers are written to `~/.claude.json` under the top-level `mcpServers` key (user scope), so they are available across all projects inside the workspace.
+
+**Validation Rules:**
+- `name` cannot be empty and must be unique across **both** `commands` and `servers` combined — a command and a server cannot share the same name, since all entries map to the same flat `mcpServers` key in the agent settings
+- `command` cannot be empty for command entries
+- `url` cannot be empty for server entries
+
 ### Configuration Validation
 
 When you register a workspace with `kdn init`, the configuration is automatically validated. If `workspace.json` exists and contains invalid data, the registration will fail with a descriptive error message.
@@ -1620,6 +1687,36 @@ mount at index 0 is missing host
 }
 ```
 
+**MCP command server (local tool):**
+```json
+{
+  "mcp": {
+    "commands": [
+      {
+        "name": "filesystem",
+        "command": "npx",
+        "args": ["-y", "@modelcontextprotocol/server-filesystem", "/workspace/sources"]
+      }
+    ]
+  }
+}
+```
+
+**MCP remote server with authentication:**
+```json
+{
+  "mcp": {
+    "servers": [
+      {
+        "name": "company-api",
+        "url": "https://mcp.company.com/sse",
+        "headers": {"Authorization": "Bearer mytoken"}
+      }
+    ]
+  }
+}
+```
+
 **Complete configuration:**
 ```json
 {
@@ -1637,7 +1734,22 @@ mount at index 0 is missing host
     {"host": "$SOURCES/../main", "target": "$SOURCES/../main"},
     {"host": "$HOME/.claude", "target": "$HOME/.claude"},
     {"host": "$HOME/.gitconfig", "target": "$HOME/.gitconfig"}
-  ]
+  ],
+  "mcp": {
+    "commands": [
+      {
+        "name": "filesystem",
+        "command": "npx",
+        "args": ["-y", "@modelcontextprotocol/server-filesystem", "/workspace/sources"]
+      }
+    ],
+    "servers": [
+      {
+        "name": "remote-api",
+        "url": "https://api.example.com/mcp"
+      }
+    ]
+  }
 }
 ```
 
@@ -1844,6 +1956,11 @@ kdn init --runtime podman --project my-custom-project --agent goose
 - Mounts are deduplicated by `host`+`target` pair (duplicates removed)
 - Order is preserved (first occurrence wins)
 - Example: If workspace has mounts for `.gitconfig` and `.ssh`, and global adds `.ssh` and `.kube`, the result contains `.gitconfig`, `.ssh`, and `.kube`
+
+**MCP Servers:**
+- Commands and servers are each merged by `name`
+- Later configurations override earlier ones with the same name
+- Example: If workspace defines an MCP command named `filesystem` and agent config also defines `filesystem`, the agent config's version is used
 
 ### Configuration Files Don't Exist?
 

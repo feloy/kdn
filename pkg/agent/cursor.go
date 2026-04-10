@@ -23,6 +23,8 @@ import (
 	"fmt"
 	"strings"
 	"time"
+
+	workspace "github.com/openkaiden/kdn-api/workspace-configuration/go"
 )
 
 // CursorCLIConfigPath is the path to Cursor's CLI configuration file.
@@ -72,6 +74,12 @@ func (c *cursorAgent) SkipOnboarding(settings map[string][]byte, workspaceSource
 // SkillsDir returns the container path under which skill directories are mounted for Cursor.
 func (c *cursorAgent) SkillsDir() string {
 	return "$HOME/.cursor/skills"
+}
+
+// SetMCPServers returns the settings unchanged, as Cursor does not support MCP configuration
+// through agent settings files.
+func (c *cursorAgent) SetMCPServers(settings map[string][]byte, _ *workspace.McpConfiguration) (map[string][]byte, error) {
+	return settings, nil
 }
 
 // SetModel configures the model ID in Cursor settings.

@@ -266,6 +266,13 @@ func (m *manager) Add(ctx context.Context, opts AddOptions) (Instance, error) {
 					}
 				}
 			}
+			// Configure MCP servers if specified in workspace config
+			if mergedConfig != nil && mergedConfig.Mcp != nil {
+				agentSettings, err = agentImpl.SetMCPServers(agentSettings, mergedConfig.Mcp)
+				if err != nil {
+					return nil, fmt.Errorf("failed to apply agent MCP server settings: %w", err)
+				}
+			}
 		}
 		// If agent not found in registry, use settings as-is (not all agents may be implemented)
 	}

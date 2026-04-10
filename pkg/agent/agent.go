@@ -18,6 +18,10 @@
 
 package agent
 
+import (
+	workspace "github.com/openkaiden/kdn-api/workspace-configuration/go"
+)
+
 // Agent is an interface for agent-specific configuration and setup operations.
 type Agent interface {
 	// Name returns the agent name (e.g., "claude", "goose").
@@ -38,4 +42,11 @@ type Agent interface {
 	// directories should be mounted (e.g., "$HOME/.claude/skills" for Claude Code).
 	// Returns "" if the agent does not support skills mounting.
 	SkillsDir() string
+	// SetMCPServers configures MCP servers in the agent settings.
+	// It takes the current agent settings map (path -> content) and the MCP configuration,
+	// and returns the modified settings with MCP servers configured.
+	// If the agent does not support MCP configuration, settings are returned unchanged.
+	// If mcp is nil, settings are returned unchanged.
+	// Returns the modified settings map, or an error if modification fails.
+	SetMCPServers(settings map[string][]byte, mcp *workspace.McpConfiguration) (map[string][]byte, error)
 }

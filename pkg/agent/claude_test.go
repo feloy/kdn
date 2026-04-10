@@ -21,6 +21,8 @@ package agent
 import (
 	"encoding/json"
 	"testing"
+
+	workspace "github.com/openkaiden/kdn-api/workspace-configuration/go"
 )
 
 func TestClaude_Name(t *testing.T) {
@@ -500,5 +502,352 @@ func TestClaude_SkillsDir(t *testing.T) {
 	agent := NewClaude()
 	if got := agent.SkillsDir(); got != "$HOME/.claude/skills" {
 		t.Errorf("SkillsDir() = %q, want %q", got, "$HOME/.claude/skills")
+	}
+}
+
+func TestClaude_SetMCPServers_NilMCP(t *testing.T) {
+	t.Parallel()
+
+	agent := NewClaude()
+	settings := map[string][]byte{
+		ClaudeJSONPath: []byte(`{"hasCompletedOnboarding": true}`),
+	}
+
+	result, err := agent.SetMCPServers(settings, nil)
+	if err != nil {
+		t.Fatalf("SetMCPServers() error = %v", err)
+	}
+
+	// Settings should be returned unchanged
+	if string(result[ClaudeJSONPath]) != `{"hasCompletedOnboarding": true}` {
+		t.Errorf("SetMCPServers() with nil MCP modified settings unexpectedly: %s", result[ClaudeJSONPath])
+	}
+}
+
+func TestClaude_SetMCPServers_NilSettings(t *testing.T) {
+	t.Parallel()
+
+	agent := NewClaude()
+	args := []string{"-y", "@modelcontextprotocol/server-filesystem"}
+	mcp := &workspace.McpConfiguration{
+		Commands: &[]workspace.McpCommand{
+			{Name: "filesystem", Command: "npx", Args: &args},
+		},
+	}
+
+	result, err := agent.SetMCPServers(nil, mcp)
+	if err != nil {
+		t.Fatalf("SetMCPServers() error = %v", err)
+	}
+	if result == nil {
+		t.Fatal("Expected non-nil result map")
+	}
+	if _, exists := result[ClaudeJSONPath]; !exists {
+		t.Errorf("Expected %s to be created", ClaudeJSONPath)
+	}
+}
+
+func TestClaude_SetMCPServers_CommandBased(t *testing.T) {
+	t.Parallel()
+
+	agent := NewClaude()
+	args := []string{"-y", "@modelcontextprotocol/server-filesystem", "/workspace"}
+	env := map[string]string{"NODE_ENV": "production"}
+	mcp := &workspace.McpConfiguration{
+		Commands: &[]workspace.McpCommand{
+			{Name: "filesystem", Command: "npx", Args: &args, Env: &env},
+		},
+	}
+
+	result, err := agent.SetMCPServers(nil, mcp)
+	if err != nil {
+		t.Fatalf("SetMCPServers() error = %v", err)
+	}
+
+	var config map[string]interface{}
+	if err := json.Unmarshal(result[ClaudeJSONPath], &config); err != nil {
+		t.Fatalf("Failed to parse result JSON: %v", err)
+	}
+
+	mcpServers, ok := config["mcpServers"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("mcpServers is not a map: %v", config["mcpServers"])
+	}
+
+	fsServer, ok := mcpServers["filesystem"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("filesystem server not found or wrong type")
+	}
+
+	if fsServer["type"] != "stdio" {
+		t.Errorf("type = %v, want %q", fsServer["type"], "stdio")
+	}
+	if fsServer["command"] != "npx" {
+		t.Errorf("command = %v, want %q", fsServer["command"], "npx")
+	}
+
+	gotArgs, ok := fsServer["args"].([]interface{})
+	if !ok {
+		t.Fatalf("args is not a slice: %v", fsServer["args"])
+	}
+	if len(gotArgs) != 3 || gotArgs[0] != "-y" {
+		t.Errorf("args = %v, want %v", gotArgs, args)
+	}
+
+	gotEnv, ok := fsServer["env"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("env is not a map: %v", fsServer["env"])
+	}
+	if gotEnv["NODE_ENV"] != "production" {
+		t.Errorf("env.NODE_ENV = %v, want %q", gotEnv["NODE_ENV"], "production")
+	}
+}
+
+func TestClaude_SetMCPServers_URLBased(t *testing.T) {
+	t.Parallel()
+
+	agent := NewClaude()
+	headers := map[string]string{"Authorization": "Bearer token123"}
+	mcp := &workspace.McpConfiguration{
+		Servers: &[]workspace.McpServer{
+			{Name: "remote", Url: "https://example.com/sse", Headers: &headers},
+		},
+	}
+
+	result, err := agent.SetMCPServers(nil, mcp)
+	if err != nil {
+		t.Fatalf("SetMCPServers() error = %v", err)
+	}
+
+	var config map[string]interface{}
+	if err := json.Unmarshal(result[ClaudeJSONPath], &config); err != nil {
+		t.Fatalf("Failed to parse result JSON: %v", err)
+	}
+
+	mcpServers, ok := config["mcpServers"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("mcpServers is not a map: %v", config["mcpServers"])
+	}
+
+	remoteServer, ok := mcpServers["remote"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("remote server not found or wrong type")
+	}
+
+	if remoteServer["type"] != "sse" {
+		t.Errorf("type = %v, want %q", remoteServer["type"], "sse")
+	}
+	if remoteServer["url"] != "https://example.com/sse" {
+		t.Errorf("url = %v, want %q", remoteServer["url"], "https://example.com/sse")
+	}
+
+	gotHeaders, ok := remoteServer["headers"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("headers is not a map: %v", remoteServer["headers"])
+	}
+	if gotHeaders["Authorization"] != "Bearer token123" {
+		t.Errorf("headers.Authorization = %v, want %q", gotHeaders["Authorization"], "Bearer token123")
+	}
+}
+
+func TestClaude_SetMCPServers_URLBased_NoHeaders(t *testing.T) {
+	t.Parallel()
+
+	agent := NewClaude()
+	mcp := &workspace.McpConfiguration{
+		Servers: &[]workspace.McpServer{
+			{Name: "simple", Url: "https://example.com/sse"},
+		},
+	}
+
+	result, err := agent.SetMCPServers(nil, mcp)
+	if err != nil {
+		t.Fatalf("SetMCPServers() error = %v", err)
+	}
+
+	var config map[string]interface{}
+	if err := json.Unmarshal(result[ClaudeJSONPath], &config); err != nil {
+		t.Fatalf("Failed to parse result JSON: %v", err)
+	}
+
+	mcpServers := config["mcpServers"].(map[string]interface{})
+	server := mcpServers["simple"].(map[string]interface{})
+
+	if _, hasHeaders := server["headers"]; hasHeaders {
+		t.Errorf("Expected no headers field when Headers is nil, got: %v", server["headers"])
+	}
+}
+
+func TestClaude_SetMCPServers_Mixed(t *testing.T) {
+	t.Parallel()
+
+	agent := NewClaude()
+	mcp := &workspace.McpConfiguration{
+		Commands: &[]workspace.McpCommand{
+			{Name: "local-tool", Command: "python3", Args: &[]string{"/scripts/mcp.py"}},
+		},
+		Servers: &[]workspace.McpServer{
+			{Name: "remote-api", Url: "https://api.example.com/mcp"},
+		},
+	}
+
+	result, err := agent.SetMCPServers(nil, mcp)
+	if err != nil {
+		t.Fatalf("SetMCPServers() error = %v", err)
+	}
+
+	var config map[string]interface{}
+	if err := json.Unmarshal(result[ClaudeJSONPath], &config); err != nil {
+		t.Fatalf("Failed to parse result JSON: %v", err)
+	}
+
+	mcpServers, ok := config["mcpServers"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("mcpServers is not a map")
+	}
+	if _, ok := mcpServers["local-tool"]; !ok {
+		t.Error("Expected local-tool server to be present")
+	}
+	if _, ok := mcpServers["remote-api"]; !ok {
+		t.Error("Expected remote-api server to be present")
+	}
+}
+
+func TestClaude_SetMCPServers_PreservesExistingMCPServers(t *testing.T) {
+	t.Parallel()
+
+	agent := NewClaude()
+
+	// Start with an existing mcpServers entry in .claude.json
+	existing := map[string]interface{}{
+		"hasCompletedOnboarding": true,
+		"mcpServers": map[string]interface{}{
+			"existing-server": map[string]interface{}{
+				"type":    "stdio",
+				"command": "existing-cmd",
+				"args":    []interface{}{},
+				"env":     map[string]interface{}{},
+			},
+		},
+	}
+	existingJSON, _ := json.Marshal(existing)
+
+	mcp := &workspace.McpConfiguration{
+		Commands: &[]workspace.McpCommand{
+			{Name: "new-tool", Command: "new-cmd"},
+		},
+	}
+
+	result, err := agent.SetMCPServers(map[string][]byte{ClaudeJSONPath: existingJSON}, mcp)
+	if err != nil {
+		t.Fatalf("SetMCPServers() error = %v", err)
+	}
+
+	var config map[string]interface{}
+	if err := json.Unmarshal(result[ClaudeJSONPath], &config); err != nil {
+		t.Fatalf("Failed to parse result JSON: %v", err)
+	}
+
+	mcpServers, ok := config["mcpServers"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("mcpServers is not a map")
+	}
+
+	// Both old and new servers should be present
+	if _, ok := mcpServers["existing-server"]; !ok {
+		t.Error("existing-server was not preserved")
+	}
+	if _, ok := mcpServers["new-tool"]; !ok {
+		t.Error("new-tool was not added")
+	}
+	if config["hasCompletedOnboarding"] != true {
+		t.Error("hasCompletedOnboarding was not preserved")
+	}
+}
+
+func TestClaude_SetMCPServers_PreservesOtherFields(t *testing.T) {
+	t.Parallel()
+
+	agent := NewClaude()
+	existing := map[string]interface{}{
+		"model":                  "claude-opus-4-6",
+		"hasCompletedOnboarding": true,
+	}
+	existingJSON, _ := json.Marshal(existing)
+
+	mcp := &workspace.McpConfiguration{
+		Commands: &[]workspace.McpCommand{
+			{Name: "tool", Command: "mytool"},
+		},
+	}
+
+	result, err := agent.SetMCPServers(map[string][]byte{ClaudeJSONPath: existingJSON}, mcp)
+	if err != nil {
+		t.Fatalf("SetMCPServers() error = %v", err)
+	}
+
+	var config map[string]interface{}
+	if err := json.Unmarshal(result[ClaudeJSONPath], &config); err != nil {
+		t.Fatalf("Failed to parse result JSON: %v", err)
+	}
+
+	if config["model"] != "claude-opus-4-6" {
+		t.Errorf("model field was not preserved: %v", config["model"])
+	}
+	if config["hasCompletedOnboarding"] != true {
+		t.Errorf("hasCompletedOnboarding was not preserved: %v", config["hasCompletedOnboarding"])
+	}
+	if _, ok := config["mcpServers"]; !ok {
+		t.Error("mcpServers was not added")
+	}
+}
+
+func TestClaude_SetMCPServers_CommandNoArgs(t *testing.T) {
+	t.Parallel()
+
+	agent := NewClaude()
+	mcp := &workspace.McpConfiguration{
+		Commands: &[]workspace.McpCommand{
+			{Name: "tool", Command: "mytool"},
+		},
+	}
+
+	result, err := agent.SetMCPServers(nil, mcp)
+	if err != nil {
+		t.Fatalf("SetMCPServers() error = %v", err)
+	}
+
+	var config map[string]interface{}
+	if err := json.Unmarshal(result[ClaudeJSONPath], &config); err != nil {
+		t.Fatalf("Failed to parse result JSON: %v", err)
+	}
+
+	mcpServers := config["mcpServers"].(map[string]interface{})
+	server := mcpServers["tool"].(map[string]interface{})
+
+	// Args should default to empty slice, env to empty map
+	args, ok := server["args"].([]interface{})
+	if !ok || len(args) != 0 {
+		t.Errorf("args = %v, want empty slice", server["args"])
+	}
+	envMap, ok := server["env"].(map[string]interface{})
+	if !ok || len(envMap) != 0 {
+		t.Errorf("env = %v, want empty map", server["env"])
+	}
+}
+
+func TestClaude_SetMCPServers_InvalidJSON(t *testing.T) {
+	t.Parallel()
+
+	agent := NewClaude()
+	mcp := &workspace.McpConfiguration{
+		Commands: &[]workspace.McpCommand{
+			{Name: "tool", Command: "mytool"},
+		},
+	}
+
+	_, err := agent.SetMCPServers(map[string][]byte{ClaudeJSONPath: []byte("invalid json {{{")}, mcp)
+	if err == nil {
+		t.Error("Expected error for invalid JSON, got nil")
 	}
 }
