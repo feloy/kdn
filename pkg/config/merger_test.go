@@ -616,3 +616,204 @@ func TestMergeSkills(t *testing.T) {
 		}
 	})
 }
+
+func TestMerger_Merge_MCP_BothNil(t *testing.T) {
+	t.Parallel()
+
+	merger := NewMerger()
+	base := &workspace.WorkspaceConfiguration{}
+	override := &workspace.WorkspaceConfiguration{}
+
+	result := merger.Merge(base, override)
+	if result.Mcp != nil {
+		t.Error("Expected Mcp to be nil when both have no MCP config")
+	}
+}
+
+func TestMerger_Merge_MCP_BaseOnly(t *testing.T) {
+	t.Parallel()
+
+	merger := NewMerger()
+	base := &workspace.WorkspaceConfiguration{
+		Mcp: &workspace.McpConfiguration{
+			Commands: &[]workspace.McpCommand{
+				{Name: "tool-a", Command: "cmd-a"},
+			},
+			Servers: &[]workspace.McpServer{
+				{Name: "srv-a", Url: "https://a.example.com"},
+			},
+		},
+	}
+	override := &workspace.WorkspaceConfiguration{}
+
+	result := merger.Merge(base, override)
+	if result.Mcp == nil {
+		t.Fatal("Expected non-nil Mcp")
+	}
+	if result.Mcp.Commands == nil || len(*result.Mcp.Commands) != 1 {
+		t.Errorf("Expected 1 command, got %v", result.Mcp.Commands)
+	}
+	if (*result.Mcp.Commands)[0].Name != "tool-a" {
+		t.Errorf("Expected command name %q, got %q", "tool-a", (*result.Mcp.Commands)[0].Name)
+	}
+	if result.Mcp.Servers == nil || len(*result.Mcp.Servers) != 1 {
+		t.Errorf("Expected 1 server, got %v", result.Mcp.Servers)
+	}
+}
+
+func TestMerger_Merge_MCP_OverrideOnly(t *testing.T) {
+	t.Parallel()
+
+	merger := NewMerger()
+	base := &workspace.WorkspaceConfiguration{}
+	override := &workspace.WorkspaceConfiguration{
+		Mcp: &workspace.McpConfiguration{
+			Commands: &[]workspace.McpCommand{
+				{Name: "tool-b", Command: "cmd-b"},
+			},
+		},
+	}
+
+	result := merger.Merge(base, override)
+	if result.Mcp == nil {
+		t.Fatal("Expected non-nil Mcp")
+	}
+	if result.Mcp.Commands == nil || len(*result.Mcp.Commands) != 1 {
+		t.Errorf("Expected 1 command, got %v", result.Mcp.Commands)
+	}
+	if (*result.Mcp.Commands)[0].Name != "tool-b" {
+		t.Errorf("Expected command name %q, got %q", "tool-b", (*result.Mcp.Commands)[0].Name)
+	}
+}
+
+func TestMerger_Merge_MCP_CommandsMergedByName(t *testing.T) {
+	t.Parallel()
+
+	merger := NewMerger()
+	base := &workspace.WorkspaceConfiguration{
+		Mcp: &workspace.McpConfiguration{
+			Commands: &[]workspace.McpCommand{
+				{Name: "tool-a", Command: "cmd-a"},
+				{Name: "tool-b", Command: "cmd-b-base"},
+			},
+		},
+	}
+	override := &workspace.WorkspaceConfiguration{
+		Mcp: &workspace.McpConfiguration{
+			Commands: &[]workspace.McpCommand{
+				{Name: "tool-b", Command: "cmd-b-override"},
+				{Name: "tool-c", Command: "cmd-c"},
+			},
+		},
+	}
+
+	result := merger.Merge(base, override)
+	if result.Mcp == nil || result.Mcp.Commands == nil {
+		t.Fatal("Expected non-nil Mcp.Commands")
+	}
+
+	cmds := *result.Mcp.Commands
+	if len(cmds) != 3 {
+		t.Fatalf("Expected 3 commands, got %d: %v", len(cmds), cmds)
+	}
+
+	cmdMap := make(map[string]string)
+	for _, cmd := range cmds {
+		cmdMap[cmd.Name] = cmd.Command
+	}
+
+	if cmdMap["tool-a"] != "cmd-a" {
+		t.Errorf("tool-a command = %q, want %q", cmdMap["tool-a"], "cmd-a")
+	}
+	if cmdMap["tool-b"] != "cmd-b-override" {
+		t.Errorf("tool-b should be overridden: got %q, want %q", cmdMap["tool-b"], "cmd-b-override")
+	}
+	if cmdMap["tool-c"] != "cmd-c" {
+		t.Errorf("tool-c command = %q, want %q", cmdMap["tool-c"], "cmd-c")
+	}
+}
+
+func TestMerger_Merge_MCP_ServersMergedByName(t *testing.T) {
+	t.Parallel()
+
+	merger := NewMerger()
+	base := &workspace.WorkspaceConfiguration{
+		Mcp: &workspace.McpConfiguration{
+			Servers: &[]workspace.McpServer{
+				{Name: "srv-a", Url: "https://a.example.com"},
+				{Name: "srv-b", Url: "https://b-base.example.com"},
+			},
+		},
+	}
+	override := &workspace.WorkspaceConfiguration{
+		Mcp: &workspace.McpConfiguration{
+			Servers: &[]workspace.McpServer{
+				{Name: "srv-b", Url: "https://b-override.example.com"},
+				{Name: "srv-c", Url: "https://c.example.com"},
+			},
+		},
+	}
+
+	result := merger.Merge(base, override)
+	if result.Mcp == nil || result.Mcp.Servers == nil {
+		t.Fatal("Expected non-nil Mcp.Servers")
+	}
+
+	srvs := *result.Mcp.Servers
+	if len(srvs) != 3 {
+		t.Fatalf("Expected 3 servers, got %d: %v", len(srvs), srvs)
+	}
+
+	srvMap := make(map[string]string)
+	for _, srv := range srvs {
+		srvMap[srv.Name] = srv.Url
+	}
+
+	if srvMap["srv-a"] != "https://a.example.com" {
+		t.Errorf("srv-a url = %q, want %q", srvMap["srv-a"], "https://a.example.com")
+	}
+	if srvMap["srv-b"] != "https://b-override.example.com" {
+		t.Errorf("srv-b should be overridden: got %q, want %q", srvMap["srv-b"], "https://b-override.example.com")
+	}
+	if srvMap["srv-c"] != "https://c.example.com" {
+		t.Errorf("srv-c url = %q, want %q", srvMap["srv-c"], "https://c.example.com")
+	}
+}
+
+func TestMerger_Merge_MCP_PreservesOtherFields(t *testing.T) {
+	t.Parallel()
+
+	merger := NewMerger()
+	base := &workspace.WorkspaceConfiguration{
+		Environment: &[]workspace.EnvironmentVariable{
+			{Name: "FOO", Value: strPtr("bar")},
+		},
+		Mcp: &workspace.McpConfiguration{
+			Commands: &[]workspace.McpCommand{
+				{Name: "tool-a", Command: "cmd-a"},
+			},
+		},
+	}
+	override := &workspace.WorkspaceConfiguration{
+		Mcp: &workspace.McpConfiguration{
+			Servers: &[]workspace.McpServer{
+				{Name: "srv-a", Url: "https://a.example.com"},
+			},
+		},
+	}
+
+	result := merger.Merge(base, override)
+
+	if result.Environment == nil || len(*result.Environment) != 1 {
+		t.Error("Environment was not preserved during MCP merge")
+	}
+	if result.Mcp == nil {
+		t.Fatal("Expected non-nil Mcp")
+	}
+	if result.Mcp.Commands == nil || len(*result.Mcp.Commands) != 1 {
+		t.Error("Commands from base were not preserved")
+	}
+	if result.Mcp.Servers == nil || len(*result.Mcp.Servers) != 1 {
+		t.Error("Servers from override were not added")
+	}
+}

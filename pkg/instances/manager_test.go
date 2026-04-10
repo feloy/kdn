@@ -211,6 +211,7 @@ type trackingAgent struct {
 	setModelCalled         bool
 	setModelSettings       map[string][]byte
 	setModelID             string
+	setMCPServersCalled    bool
 	mu                     sync.Mutex
 }
 
@@ -265,6 +266,22 @@ func (t *trackingAgent) GetSetModelID() string {
 	return t.setModelID
 }
 
+func (t *trackingAgent) SetMCPServers(settings map[string][]byte, _ *workspace.McpConfiguration) (map[string][]byte, error) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	t.setMCPServersCalled = true
+	if settings == nil {
+		settings = make(map[string][]byte)
+	}
+	return settings, nil
+}
+
+func (t *trackingAgent) WasSetMCPServersCalled() bool {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	return t.setMCPServersCalled
+}
+
 func (t *trackingAgent) WasSkipOnboardingCalled() bool {
 	t.mu.Lock()
 	defer t.mu.Unlock()
@@ -304,6 +321,10 @@ func (e *erroringSetModelAgent) SetModel(_ map[string][]byte, _ string) (map[str
 
 func (e *erroringSetModelAgent) SkillsDir() string {
 	return ""
+}
+
+func (e *erroringSetModelAgent) SetMCPServers(settings map[string][]byte, _ *workspace.McpConfiguration) (map[string][]byte, error) {
+	return settings, nil
 }
 
 // newTestRegistry creates a runtime registry with a fake runtime for testing
@@ -3768,6 +3789,125 @@ func TestManager_Add_ConvertsSkillsToMounts(t *testing.T) {
 		params := spy.LastCreateParams()
 		if params.WorkspaceConfig != nil && params.WorkspaceConfig.Mounts != nil {
 			t.Errorf("Expected no mounts when agent has empty SkillsDir, got %v", *params.WorkspaceConfig.Mounts)
+		}
+	})
+}
+
+func TestManager_Add_AppliesAgentMCPServers(t *testing.T) {
+	t.Parallel()
+
+	t.Run("calls SetMCPServers when workspace config has MCP", func(t *testing.T) {
+		t.Parallel()
+
+		storageDir := t.TempDir()
+		manager, err := NewManager(storageDir)
+		if err != nil {
+			t.Fatalf("Failed to create manager: %v", err)
+		}
+
+		if err := manager.RegisterRuntime(fake.New()); err != nil {
+			t.Fatalf("Failed to register fake runtime: %v", err)
+		}
+
+		trackingAgent := newTrackingAgent("test-agent")
+		if err := manager.RegisterAgent("test-agent", trackingAgent); err != nil {
+			t.Fatalf("Failed to register tracking agent: %v", err)
+		}
+
+		instanceTmpDir := t.TempDir()
+		sourceDir := filepath.Join(instanceTmpDir, "source")
+		configDir := filepath.Join(instanceTmpDir, "config")
+		if err := os.MkdirAll(sourceDir, 0755); err != nil {
+			t.Fatalf("Failed to create source directory: %v", err)
+		}
+		if err := os.MkdirAll(configDir, 0755); err != nil {
+			t.Fatalf("Failed to create config directory: %v", err)
+		}
+
+		inst, err := NewInstance(NewInstanceParams{
+			SourceDir: sourceDir,
+			ConfigDir: configDir,
+		})
+		if err != nil {
+			t.Fatalf("Failed to create instance: %v", err)
+		}
+
+		mcp := &workspace.McpConfiguration{
+			Commands: &[]workspace.McpCommand{
+				{Name: "my-tool", Command: "mytool"},
+			},
+		}
+
+		added, err := manager.Add(context.Background(), AddOptions{
+			Instance:    inst,
+			RuntimeType: "fake",
+			Agent:       "test-agent",
+			WorkspaceConfig: &workspace.WorkspaceConfiguration{
+				Mcp: mcp,
+			},
+		})
+		if err != nil {
+			t.Fatalf("Add() error = %v", err)
+		}
+		if added == nil {
+			t.Fatal("Add() returned nil instance")
+		}
+
+		if !trackingAgent.WasSetMCPServersCalled() {
+			t.Error("SetMCPServers() was not called")
+		}
+	})
+
+	t.Run("does not call SetMCPServers when workspace config has no MCP", func(t *testing.T) {
+		t.Parallel()
+
+		storageDir := t.TempDir()
+		manager, err := NewManager(storageDir)
+		if err != nil {
+			t.Fatalf("Failed to create manager: %v", err)
+		}
+
+		if err := manager.RegisterRuntime(fake.New()); err != nil {
+			t.Fatalf("Failed to register fake runtime: %v", err)
+		}
+
+		trackingAgent := newTrackingAgent("test-agent")
+		if err := manager.RegisterAgent("test-agent", trackingAgent); err != nil {
+			t.Fatalf("Failed to register tracking agent: %v", err)
+		}
+
+		instanceTmpDir := t.TempDir()
+		sourceDir := filepath.Join(instanceTmpDir, "source")
+		configDir := filepath.Join(instanceTmpDir, "config")
+		if err := os.MkdirAll(sourceDir, 0755); err != nil {
+			t.Fatalf("Failed to create source directory: %v", err)
+		}
+		if err := os.MkdirAll(configDir, 0755); err != nil {
+			t.Fatalf("Failed to create config directory: %v", err)
+		}
+
+		inst, err := NewInstance(NewInstanceParams{
+			SourceDir: sourceDir,
+			ConfigDir: configDir,
+		})
+		if err != nil {
+			t.Fatalf("Failed to create instance: %v", err)
+		}
+
+		added, err := manager.Add(context.Background(), AddOptions{
+			Instance:    inst,
+			RuntimeType: "fake",
+			Agent:       "test-agent",
+		})
+		if err != nil {
+			t.Fatalf("Add() error = %v", err)
+		}
+		if added == nil {
+			t.Fatal("Add() returned nil instance")
+		}
+
+		if trackingAgent.WasSetMCPServersCalled() {
+			t.Error("SetMCPServers() should not be called when no MCP config is provided")
 		}
 	})
 }

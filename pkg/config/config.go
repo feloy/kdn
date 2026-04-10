@@ -159,6 +159,41 @@ func (c *config) validate(cfg *workspace.WorkspaceConfiguration) error {
 		}
 	}
 
+	// Validate MCP configuration
+	if cfg.Mcp != nil {
+		// Names must be unique across both commands and servers, since all entries
+		// are written to a single flat map (e.g., Claude's mcpServers).
+		seenMCP := make(map[string]string) // name -> "command" or "server"
+		if cfg.Mcp.Commands != nil {
+			for i, cmd := range *cfg.Mcp.Commands {
+				if cmd.Name == "" {
+					return fmt.Errorf("%w: MCP command at index %d has empty name", ErrInvalidConfig, i)
+				}
+				if kind, exists := seenMCP[cmd.Name]; exists {
+					return fmt.Errorf("%w: MCP command %q (index %d) duplicates a %s with the same name", ErrInvalidConfig, cmd.Name, i, kind)
+				}
+				seenMCP[cmd.Name] = "command"
+				if cmd.Command == "" {
+					return fmt.Errorf("%w: MCP command %q (index %d) has empty command", ErrInvalidConfig, cmd.Name, i)
+				}
+			}
+		}
+		if cfg.Mcp.Servers != nil {
+			for i, srv := range *cfg.Mcp.Servers {
+				if srv.Name == "" {
+					return fmt.Errorf("%w: MCP server at index %d has empty name", ErrInvalidConfig, i)
+				}
+				if kind, exists := seenMCP[srv.Name]; exists {
+					return fmt.Errorf("%w: MCP server %q (index %d) duplicates a %s with the same name", ErrInvalidConfig, srv.Name, i, kind)
+				}
+				seenMCP[srv.Name] = "server"
+				if srv.Url == "" {
+					return fmt.Errorf("%w: MCP server %q (index %d) has empty url", ErrInvalidConfig, srv.Name, i)
+				}
+			}
+		}
+	}
+
 	// Validate mounts
 	if cfg.Mounts != nil {
 		for i, m := range *cfg.Mounts {

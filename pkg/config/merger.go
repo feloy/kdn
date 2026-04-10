@@ -69,6 +69,9 @@ func (m *merger) Merge(base, override *workspace.WorkspaceConfiguration) *worksp
 	// Merge skills
 	result.Skills = mergeSkills(base.Skills, override.Skills)
 
+	// Merge MCP configuration
+	result.Mcp = mergeMCP(base.Mcp, override.Mcp)
+
 	return result
 }
 
@@ -166,7 +169,6 @@ func mergeSkills(base, override *[]string) *[]string {
 	if base == nil && override == nil {
 		return nil
 	}
-
 	seen := make(map[string]bool)
 	var result []string
 
@@ -186,6 +188,119 @@ func mergeSkills(base, override *[]string) *[]string {
 		return nil
 	}
 	return &result
+}
+
+// mergeMCP merges two McpConfiguration objects, with override taking precedence by name.
+// Commands and servers from base are included first; override entries replace base entries
+// with the same name.
+func mergeMCP(base, override *workspace.McpConfiguration) *workspace.McpConfiguration {
+	if base == nil && override == nil {
+		return nil
+	}
+	if base == nil {
+		return copyMCP(override)
+	}
+	if override == nil {
+		return copyMCP(base)
+	}
+
+	result := &workspace.McpConfiguration{}
+	result.Commands = mergeMCPCommands(base.Commands, override.Commands)
+	result.Servers = mergeMCPServers(base.Servers, override.Servers)
+
+	if result.Commands == nil && result.Servers == nil {
+		return nil
+	}
+	return result
+}
+
+// mergeMCPCommands merges command slices, deduplicating by name (override wins).
+func mergeMCPCommands(base, override *[]workspace.McpCommand) *[]workspace.McpCommand {
+	if base == nil && override == nil {
+		return nil
+	}
+
+	cmdMap := make(map[string]workspace.McpCommand)
+	var order []string
+
+	if base != nil {
+		for _, cmd := range *base {
+			cmdMap[cmd.Name] = cmd
+			order = append(order, cmd.Name)
+		}
+	}
+	if override != nil {
+		for _, cmd := range *override {
+			if _, exists := cmdMap[cmd.Name]; !exists {
+				order = append(order, cmd.Name)
+			}
+			cmdMap[cmd.Name] = cmd
+		}
+	}
+
+	if len(cmdMap) == 0 {
+		return nil
+	}
+
+	result := make([]workspace.McpCommand, 0, len(order))
+	for _, name := range order {
+		result = append(result, cmdMap[name])
+	}
+	return &result
+}
+
+// mergeMCPServers merges server slices, deduplicating by name (override wins).
+func mergeMCPServers(base, override *[]workspace.McpServer) *[]workspace.McpServer {
+	if base == nil && override == nil {
+		return nil
+	}
+
+	srvMap := make(map[string]workspace.McpServer)
+	var order []string
+
+	if base != nil {
+		for _, srv := range *base {
+			srvMap[srv.Name] = srv
+			order = append(order, srv.Name)
+		}
+	}
+	if override != nil {
+		for _, srv := range *override {
+			if _, exists := srvMap[srv.Name]; !exists {
+				order = append(order, srv.Name)
+			}
+			srvMap[srv.Name] = srv
+		}
+	}
+
+	if len(srvMap) == 0 {
+		return nil
+	}
+
+	result := make([]workspace.McpServer, 0, len(order))
+	for _, name := range order {
+		result = append(result, srvMap[name])
+	}
+	return &result
+}
+
+// copyMCP creates a deep copy of an McpConfiguration.
+func copyMCP(mcp *workspace.McpConfiguration) *workspace.McpConfiguration {
+	if mcp == nil {
+		return nil
+	}
+	result := &workspace.McpConfiguration{}
+	if mcp.Commands != nil {
+		cmdsCopy := make([]workspace.McpCommand, len(*mcp.Commands))
+		copy(cmdsCopy, *mcp.Commands)
+		result.Commands = &cmdsCopy
+	}
+	if mcp.Servers != nil {
+		srvsCopy := make([]workspace.McpServer, len(*mcp.Servers))
+		copy(srvsCopy, *mcp.Servers)
+		result.Servers = &srvsCopy
+	}
+	return result
 }
 
 // copyConfig creates a deep copy of a WorkspaceConfiguration
@@ -218,6 +333,9 @@ func copyConfig(cfg *workspace.WorkspaceConfiguration) *workspace.WorkspaceConfi
 		copy(skillsCopy, *cfg.Skills)
 		result.Skills = &skillsCopy
 	}
+
+	// Copy MCP configuration
+	result.Mcp = copyMCP(cfg.Mcp)
 
 	return result
 }

@@ -1212,3 +1212,119 @@ func TestConfig_Load(t *testing.T) {
 		}
 	})
 }
+
+func TestConfig_Load_MCP_Valid(t *testing.T) {
+	t.Parallel()
+
+	configDir := t.TempDir()
+	workspaceJSON := `{
+  "mcp": {
+    "commands": [
+      {"name": "my-tool", "command": "npx", "args": ["-y", "my-pkg"]},
+      {"name": "another-tool", "command": "python3"}
+    ],
+    "servers": [
+      {"name": "remote-srv", "url": "https://example.com/sse"},
+      {"name": "auth-srv", "url": "https://api.example.com/mcp", "headers": {"Authorization": "Bearer token"}}
+    ]
+  }
+}`
+	err := os.WriteFile(filepath.Join(configDir, WorkspaceConfigFile), []byte(workspaceJSON), 0644)
+	if err != nil {
+		t.Fatalf("os.WriteFile() failed: %v", err)
+	}
+
+	cfg, err := NewConfig(configDir)
+	if err != nil {
+		t.Fatalf("NewConfig() failed: %v", err)
+	}
+
+	workspaceCfg, err := cfg.Load()
+	if err != nil {
+		t.Fatalf("Load() failed: %v", err)
+	}
+
+	if workspaceCfg.Mcp == nil {
+		t.Fatal("Expected non-nil Mcp")
+	}
+	if workspaceCfg.Mcp.Commands == nil || len(*workspaceCfg.Mcp.Commands) != 2 {
+		t.Errorf("Expected 2 commands, got %v", workspaceCfg.Mcp.Commands)
+	}
+	if workspaceCfg.Mcp.Servers == nil || len(*workspaceCfg.Mcp.Servers) != 2 {
+		t.Errorf("Expected 2 servers, got %v", workspaceCfg.Mcp.Servers)
+	}
+}
+
+func TestConfig_Load_MCP_Invalid(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name       string
+		json       string
+		wantErrMsg string
+	}{
+		{
+			name:       "command with empty name",
+			json:       `{"mcp": {"commands": [{"name": "", "command": "npx"}]}}`,
+			wantErrMsg: "MCP command at index 0 has empty name",
+		},
+		{
+			name:       "command with empty command field",
+			json:       `{"mcp": {"commands": [{"name": "tool", "command": ""}]}}`,
+			wantErrMsg: "MCP command \"tool\" (index 0) has empty command",
+		},
+		{
+			name:       "duplicate command names",
+			json:       `{"mcp": {"commands": [{"name": "tool", "command": "cmd1"}, {"name": "tool", "command": "cmd2"}]}}`,
+			wantErrMsg: "MCP command \"tool\" (index 1) duplicates a command with the same name",
+		},
+		{
+			name:       "server with empty name",
+			json:       `{"mcp": {"servers": [{"name": "", "url": "https://example.com"}]}}`,
+			wantErrMsg: "MCP server at index 0 has empty name",
+		},
+		{
+			name:       "server with empty url",
+			json:       `{"mcp": {"servers": [{"name": "srv", "url": ""}]}}`,
+			wantErrMsg: "MCP server \"srv\" (index 0) has empty url",
+		},
+		{
+			name:       "duplicate server names",
+			json:       `{"mcp": {"servers": [{"name": "srv", "url": "https://a.example.com"}, {"name": "srv", "url": "https://b.example.com"}]}}`,
+			wantErrMsg: "MCP server \"srv\" (index 1) duplicates a server with the same name",
+		},
+		{
+			name:       "command and server share the same name",
+			json:       `{"mcp": {"commands": [{"name": "tool", "command": "cmd"}], "servers": [{"name": "tool", "url": "https://example.com"}]}}`,
+			wantErrMsg: "MCP server \"tool\" (index 0) duplicates a command with the same name",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			configDir := t.TempDir()
+			err := os.WriteFile(filepath.Join(configDir, WorkspaceConfigFile), []byte(tt.json), 0644)
+			if err != nil {
+				t.Fatalf("os.WriteFile() failed: %v", err)
+			}
+
+			cfg, err := NewConfig(configDir)
+			if err != nil {
+				t.Fatalf("NewConfig() failed: %v", err)
+			}
+
+			_, err = cfg.Load()
+			if err == nil {
+				t.Fatalf("Expected error containing %q, got nil", tt.wantErrMsg)
+			}
+			if !strings.Contains(err.Error(), tt.wantErrMsg) {
+				t.Errorf("Error %q does not contain %q", err.Error(), tt.wantErrMsg)
+			}
+			if !errors.Is(err, ErrInvalidConfig) {
+				t.Errorf("Expected ErrInvalidConfig, got %v", err)
+			}
+		})
+	}
+}

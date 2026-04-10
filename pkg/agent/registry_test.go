@@ -21,6 +21,8 @@ package agent
 import (
 	"errors"
 	"testing"
+
+	workspace "github.com/openkaiden/kdn-api/workspace-configuration/go"
 )
 
 // fakeAgent is a test implementation of the Agent interface
@@ -42,6 +44,10 @@ func (f *fakeAgent) SetModel(settings map[string][]byte, _ string) (map[string][
 
 func (f *fakeAgent) SkillsDir() string {
 	return ""
+}
+
+func (f *fakeAgent) SetMCPServers(settings map[string][]byte, _ *workspace.McpConfiguration) (map[string][]byte, error) {
+	return settings, nil
 }
 
 func TestNewRegistry(t *testing.T) {

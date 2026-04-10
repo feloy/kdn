@@ -21,6 +21,8 @@ package agent
 import (
 	"encoding/json"
 	"fmt"
+
+	workspace "github.com/openkaiden/kdn-api/workspace-configuration/go"
 )
 
 const (
@@ -111,6 +113,85 @@ func (c *claudeAgent) SkipOnboarding(settings map[string][]byte, workspaceSource
 // SkillsDir returns the container path under which skill directories are mounted for Claude Code.
 func (c *claudeAgent) SkillsDir() string {
 	return "$HOME/.claude/skills"
+}
+
+// SetMCPServers configures MCP servers in Claude settings.
+// It writes MCP server entries into .claude.json under the top-level "mcpServers" key.
+// Command-based servers use type "stdio" with {command, args, env}.
+// URL-based servers use type "sse" with {url, headers}.
+// All other fields in the settings file are preserved.
+// If mcp is nil, settings are returned unchanged.
+func (c *claudeAgent) SetMCPServers(settings map[string][]byte, mcp *workspace.McpConfiguration) (map[string][]byte, error) {
+	if mcp == nil {
+		return settings, nil
+	}
+	if settings == nil {
+		settings = make(map[string][]byte)
+	}
+
+	var existingContent []byte
+	var exists bool
+	if existingContent, exists = settings[ClaudeJSONPath]; !exists {
+		existingContent = []byte("{}")
+	}
+
+	var config map[string]interface{}
+	if err := json.Unmarshal(existingContent, &config); err != nil {
+		return nil, fmt.Errorf("failed to parse existing %s: %w", ClaudeJSONPath, err)
+	}
+
+	// Get or create the mcpServers map
+	mcpServers := make(map[string]interface{})
+	if raw, ok := config["mcpServers"]; ok {
+		if m, ok := raw.(map[string]interface{}); ok {
+			mcpServers = m
+		}
+	}
+
+	// Add command-based MCP servers (stdio type)
+	if mcp.Commands != nil {
+		for _, cmd := range *mcp.Commands {
+			entry := map[string]interface{}{
+				"type":    "stdio",
+				"command": cmd.Command,
+				"args":    []string{},
+				"env":     map[string]string{},
+			}
+			if cmd.Args != nil {
+				entry["args"] = *cmd.Args
+			}
+			if cmd.Env != nil {
+				entry["env"] = *cmd.Env
+			}
+			mcpServers[cmd.Name] = entry
+		}
+	}
+
+	// Add URL-based MCP servers (sse type)
+	if mcp.Servers != nil {
+		for _, srv := range *mcp.Servers {
+			entry := map[string]interface{}{
+				"type": "sse",
+				"url":  srv.Url,
+			}
+			if srv.Headers != nil {
+				entry["headers"] = *srv.Headers
+			}
+			mcpServers[srv.Name] = entry
+		}
+	}
+
+	if len(mcpServers) > 0 {
+		config["mcpServers"] = mcpServers
+	}
+
+	modifiedContent, err := json.MarshalIndent(config, "", "  ")
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal modified %s: %w", ClaudeJSONPath, err)
+	}
+
+	settings[ClaudeJSONPath] = modifiedContent
+	return settings, nil
 }
 
 // SetModel configures the model ID in Claude settings.
