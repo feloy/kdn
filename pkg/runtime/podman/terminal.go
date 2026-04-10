@@ -18,7 +18,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/kortex-hub/kortex-cli/pkg/runtime"
+	"github.com/openkaiden/kdn/pkg/runtime"
 )
 
 // Ensure podmanRuntime implements runtime.Terminal at compile time.

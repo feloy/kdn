@@ -27,11 +27,11 @@ import (
 
 	api "github.com/kortex-hub/kortex-cli-api/cli/go"
 	workspace "github.com/kortex-hub/kortex-cli-api/workspace-configuration/go"
-	"github.com/kortex-hub/kortex-cli/pkg/agent"
-	"github.com/kortex-hub/kortex-cli/pkg/config"
-	"github.com/kortex-hub/kortex-cli/pkg/generator"
-	"github.com/kortex-hub/kortex-cli/pkg/git"
-	"github.com/kortex-hub/kortex-cli/pkg/runtime"
+	"github.com/openkaiden/kdn/pkg/agent"
+	"github.com/openkaiden/kdn/pkg/config"
+	"github.com/openkaiden/kdn/pkg/generator"
+	"github.com/openkaiden/kdn/pkg/git"
+	"github.com/openkaiden/kdn/pkg/runtime"
 )
 
 const (

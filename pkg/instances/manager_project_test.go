@@ -19,8 +19,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/kortex-hub/kortex-cli/pkg/agent"
-	"github.com/kortex-hub/kortex-cli/pkg/git"
+	"github.com/openkaiden/kdn/pkg/agent"
+	"github.com/openkaiden/kdn/pkg/git"
 )
 
 func TestManager_detectProject(t *testing.T) {

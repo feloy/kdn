@@ -20,9 +20,9 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/kortex-hub/kortex-cli/pkg/runtime/podman/config"
-	"github.com/kortex-hub/kortex-cli/pkg/runtime/podman/exec"
-	"github.com/kortex-hub/kortex-cli/pkg/system"
+	"github.com/openkaiden/kdn/pkg/runtime/podman/config"
+	"github.com/openkaiden/kdn/pkg/runtime/podman/exec"
+	"github.com/openkaiden/kdn/pkg/system"
 )
 
 func TestNew(t *testing.T) {

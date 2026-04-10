@@ -19,7 +19,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/kortex-hub/kortex-cli/pkg/runtime"
+	"github.com/openkaiden/kdn/pkg/runtime"
 )
 
 // fakeRegistrar is a test implementation of Registrar

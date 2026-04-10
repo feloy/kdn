@@ -24,7 +24,7 @@ import (
 	"io"
 
 	api "github.com/kortex-hub/kortex-cli-api/cli/go"
-	"github.com/kortex-hub/kortex-cli/pkg/instances"
+	"github.com/openkaiden/kdn/pkg/instances"
 )
 
 // instanceToWorkspaceId converts an Instance to an api.WorkspaceId

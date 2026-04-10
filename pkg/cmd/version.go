@@ -19,7 +19,7 @@
 package cmd
 
 import (
-	"github.com/kortex-hub/kortex-cli/pkg/version"
+	"github.com/openkaiden/kdn/pkg/version"
 	"github.com/spf13/cobra"
 )
 

@@ -1,7 +1,7 @@
 # kdn
 
-[![codecov](https://codecov.io/gh/openkaiden/kortex-cli/branch/main/graph/badge.svg)](https://codecov.io/gh/openkaiden/kortex-cli)
-[![Documentation](https://img.shields.io/badge/documentation-blue)](https://openkaiden.github.io/kortex-cli/)
+[![codecov](https://codecov.io/gh/openkaiden/kdn/branch/main/graph/badge.svg)](https://codecov.io/gh/openkaiden/kdn)
+[![Documentation](https://img.shields.io/badge/documentation-blue)](https://openkaiden.github.io/kdn/)
 
 kdn is a command-line interface for launching and managing AI agents in isolated, reproducible workspaces. It creates runtime-based environments (containers, VMs, or other backends) where agents run with your project source code mounted, automatically configured and ready to use — no manual onboarding or setup required.
 
@@ -1699,7 +1699,7 @@ Each key is an agent name (e.g., `claude`, `goose`). The value uses the same str
       {"host": "$HOME/.ssh", "target": "$HOME/.ssh"}
     ]
   },
-  "github.com/kortex-hub/kortex-cli": {
+  "github.com/openkaiden/kdn/": {
     "environment": [
       {
         "name": "PROJECT_VAR",
@@ -1833,7 +1833,7 @@ The system works without any configuration files and merges only the ones that e
 **Project config** (`~/.kdn/config/projects.json` - your machine only):
 ```json
 {
-  "github.com/kortex-hub/kortex-cli": {
+  "github.com/openkaiden/kdn/": {
     "environment": [
       {"name": "DEBUG", "value": "true"}
     ]
@@ -2124,16 +2124,16 @@ The project is the repository remote URL (without `.git` suffix) plus the worksp
 **Example - Fork with upstream:**
 ```bash
 # Repository setup:
-# upstream: https://github.com/kortex-hub/kortex-cli.git
-# origin:   https://github.com/myuser/kortex-cli.git (fork)
+# upstream: https://github.com/openkaiden/kdn.git
+# origin:   https://github.com/myuser/kdn.git (fork)
 
 # Workspace at repository root
-kdn init /home/user/kortex-cli --runtime podman --agent claude
-# Project: https://github.com/kortex-hub/kortex-cli/
+kdn init /home/user/kdn --runtime podman --agent claude
+# Project: https://github.com/openkaiden/kdn/
 
 # Workspace in subdirectory
-kdn init /home/user/kortex-cli/pkg/git --runtime podman --agent claude
-# Project: https://github.com/kortex-hub/kortex-cli/pkg/git
+kdn init /home/user/kdn/pkg/git --runtime podman --agent claude
+# Project: https://github.com/openkaiden/kdn/pkg/git
 ```
 
 This ensures all forks and branches of the same upstream repository are grouped together.

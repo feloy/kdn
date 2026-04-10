@@ -25,10 +25,10 @@ import (
 	"path/filepath"
 
 	api "github.com/kortex-hub/kortex-cli-api/cli/go"
-	"github.com/kortex-hub/kortex-cli/pkg/instances"
-	"github.com/kortex-hub/kortex-cli/pkg/logger"
-	"github.com/kortex-hub/kortex-cli/pkg/runtimesetup"
-	"github.com/kortex-hub/kortex-cli/pkg/steplogger"
+	"github.com/openkaiden/kdn/pkg/instances"
+	"github.com/openkaiden/kdn/pkg/logger"
+	"github.com/openkaiden/kdn/pkg/runtimesetup"
+	"github.com/openkaiden/kdn/pkg/steplogger"
 	"github.com/spf13/cobra"
 )
 

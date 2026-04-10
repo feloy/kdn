@@ -21,8 +21,8 @@ import (
 	"testing"
 
 	api "github.com/kortex-hub/kortex-cli-api/cli/go"
-	"github.com/kortex-hub/kortex-cli/pkg/runtime"
-	"github.com/kortex-hub/kortex-cli/pkg/runtime/podman/exec"
+	"github.com/openkaiden/kdn/pkg/runtime"
+	"github.com/openkaiden/kdn/pkg/runtime/podman/exec"
 )
 
 func TestInfo_ValidatesID(t *testing.T) {

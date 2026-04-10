@@ -25,8 +25,8 @@ import (
 	"strings"
 
 	api "github.com/kortex-hub/kortex-cli-api/cli/go"
-	"github.com/kortex-hub/kortex-cli/pkg/runtimesetup"
-	"github.com/kortex-hub/kortex-cli/pkg/version"
+	"github.com/openkaiden/kdn/pkg/runtimesetup"
+	"github.com/openkaiden/kdn/pkg/version"
 	"github.com/spf13/cobra"
 )
 

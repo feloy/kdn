@@ -30,9 +30,9 @@ import (
     "path/filepath"
 
     "github.com/spf13/cobra"
-    "github.com/kortex-hub/kortex-cli/pkg/instances"
-    // "github.com/kortex-hub/kortex-cli/pkg/runtimesetup"  // Uncomment if registering runtimes
-    // "github.com/kortex-hub/kortex-cli/pkg/steplogger"    // Uncomment if calling runtime methods
+    "github.com/openkaiden/kdn/pkg/instances"
+    // "github.com/openkaiden/kdn/pkg/runtimesetup"  // Uncomment if registering runtimes
+    // "github.com/openkaiden/kdn/pkg/steplogger"    // Uncomment if calling runtime methods
     // Add other imports as needed
 )
 
@@ -201,7 +201,7 @@ import (
     "testing"
 
     "github.com/spf13/cobra"
-    "github.com/kortex-hub/kortex-cli/pkg/cmd/testutil"
+    "github.com/openkaiden/kdn/pkg/cmd/testutil"
 )
 
 func Test<Command>Cmd_PreRun(t *testing.T) {
@@ -342,7 +342,7 @@ If your command calls runtime methods (Create, Start, Stop, Remove), you **MUST*
 
 1. **Add the import** (uncomment in the imports section):
 ```go
-"github.com/kortex-hub/kortex-cli/pkg/steplogger"
+"github.com/openkaiden/kdn/pkg/steplogger"
 ```
 
 2. **Add the helper method** (already included in the template above):

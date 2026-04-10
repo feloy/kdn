@@ -26,7 +26,7 @@ import (
 	"testing"
 
 	api "github.com/kortex-hub/kortex-cli-api/cli/go"
-	"github.com/kortex-hub/kortex-cli/pkg/instances"
+	"github.com/openkaiden/kdn/pkg/instances"
 	"github.com/spf13/cobra"
 )
 

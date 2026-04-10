@@ -18,9 +18,9 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/kortex-hub/kortex-cli/pkg/logger"
-	"github.com/kortex-hub/kortex-cli/pkg/runtime"
-	"github.com/kortex-hub/kortex-cli/pkg/steplogger"
+	"github.com/openkaiden/kdn/pkg/logger"
+	"github.com/openkaiden/kdn/pkg/runtime"
+	"github.com/openkaiden/kdn/pkg/steplogger"
 )
 
 // Start starts a previously created Podman container.

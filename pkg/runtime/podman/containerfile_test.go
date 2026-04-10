@@ -18,7 +18,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/kortex-hub/kortex-cli/pkg/runtime/podman/config"
+	"github.com/openkaiden/kdn/pkg/runtime/podman/config"
 )
 
 func TestGenerateSudoers(t *testing.T) {

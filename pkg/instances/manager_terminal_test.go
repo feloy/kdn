@@ -20,9 +20,9 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/kortex-hub/kortex-cli/pkg/agent"
-	"github.com/kortex-hub/kortex-cli/pkg/runtime"
-	"github.com/kortex-hub/kortex-cli/pkg/runtime/fake"
+	"github.com/openkaiden/kdn/pkg/agent"
+	"github.com/openkaiden/kdn/pkg/runtime"
+	"github.com/openkaiden/kdn/pkg/runtime/fake"
 )
 
 // fakeTerminalRuntime is a fake runtime that implements runtime.Terminal

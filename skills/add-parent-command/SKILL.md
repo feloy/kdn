@@ -168,7 +168,7 @@ package cmd
 import (
     "testing"
 
-    "github.com/kortex-hub/kortex-cli/pkg/cmd/testutil"
+    "github.com/openkaiden/kdn/pkg/cmd/testutil"
 )
 
 func Test<Parent>Cmd_Structure(t *testing.T) {
@@ -386,7 +386,7 @@ package cmd
 import (
     "testing"
 
-    "github.com/kortex-hub/kortex-cli/pkg/cmd/testutil"
+    "github.com/openkaiden/kdn/pkg/cmd/testutil"
 )
 
 func TestWorkspaceCmd_Structure(t *testing.T) {

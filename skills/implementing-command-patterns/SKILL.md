@@ -394,8 +394,8 @@ Commands that trigger runtime CLI execution (e.g., `podman build`, `podman start
 
 ```go
 import (
-    "github.com/kortex-hub/kortex-cli/pkg/logger"
-    "github.com/kortex-hub/kortex-cli/pkg/steplogger"
+    "github.com/openkaiden/kdn/pkg/logger"
+    "github.com/openkaiden/kdn/pkg/steplogger"
 )
 
 type myCmd struct {

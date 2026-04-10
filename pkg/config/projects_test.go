@@ -103,7 +103,7 @@ func TestProjectConfigLoader_Load(t *testing.T) {
 
 		// Create projects.json with only specific project
 		projectsJSON := `{
-  "github.com/kortex-hub/kortex-cli": {
+  "github.com/openkaiden/kdn": {
     "environment": [
       {
         "name": "PROJECT_VAR",
@@ -147,7 +147,7 @@ func TestProjectConfigLoader_Load(t *testing.T) {
 		}
 
 		projectsJSON := `{
-  "github.com/kortex-hub/kortex-cli": {
+  "github.com/openkaiden/kdn/": {
     "environment": [
       {
         "name": "PROJECT_VAR",
@@ -173,7 +173,7 @@ func TestProjectConfigLoader_Load(t *testing.T) {
 			t.Fatalf("Failed to create loader: %v", err)
 		}
 
-		cfg, err := loader.Load("github.com/kortex-hub/kortex-cli")
+		cfg, err := loader.Load("github.com/openkaiden/kdn/")
 		if err != nil {
 			t.Errorf("Expected no error, got %v", err)
 		}
@@ -278,7 +278,7 @@ func TestProjectConfigLoader_Load(t *testing.T) {
       {"host": "$HOME/.ssh", "target": "$HOME/.ssh"}
     ]
   },
-  "github.com/kortex-hub/kortex-cli": {
+  "github.com/openkaiden/kdn/": {
     "environment": [
       {
         "name": "PROJECT_VAR",
@@ -303,7 +303,7 @@ func TestProjectConfigLoader_Load(t *testing.T) {
 			t.Fatalf("Failed to create loader: %v", err)
 		}
 
-		cfg, err := loader.Load("github.com/kortex-hub/kortex-cli")
+		cfg, err := loader.Load("github.com/openkaiden/kdn/")
 		if err != nil {
 			t.Errorf("Expected no error, got %v", err)
 		}
@@ -430,7 +430,7 @@ func TestProjectConfigLoader_Load(t *testing.T) {
 		}
 
 		projectsJSON := `{
-  "github.com/kortex-hub/kortex-cli": {
+  "github.com/openkaiden/kdn/": {
     "environment": [
       {
         "name": "BAD_VAR",
@@ -449,7 +449,7 @@ func TestProjectConfigLoader_Load(t *testing.T) {
 			t.Fatalf("Failed to create loader: %v", err)
 		}
 
-		_, err = loader.Load("github.com/kortex-hub/kortex-cli")
+		_, err = loader.Load("github.com/openkaiden/kdn/")
 		if err == nil {
 			t.Error("Expected error for invalid configuration")
 		}

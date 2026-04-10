@@ -15,8 +15,8 @@
 package podman
 
 import (
-	"github.com/kortex-hub/kortex-cli/pkg/runtime/podman/config"
-	"github.com/kortex-hub/kortex-cli/pkg/steplogger"
+	"github.com/openkaiden/kdn/pkg/runtime/podman/config"
+	"github.com/openkaiden/kdn/pkg/steplogger"
 )
 
 // fakeStepLogger is a fake implementation of steplogger.StepLogger that records calls for testing.

@@ -35,9 +35,9 @@ import (
     "context"
     "fmt"
     api "github.com/kortex-hub/kortex-cli-api/cli/go"
-    "github.com/kortex-hub/kortex-cli/pkg/runtime"
-    "github.com/kortex-hub/kortex-cli/pkg/logger"  // Optional: only if executing external commands
-    "github.com/kortex-hub/kortex-cli/pkg/steplogger"
+    "github.com/openkaiden/kdn/pkg/runtime"
+    "github.com/openkaiden/kdn/pkg/logger"  // Optional: only if executing external commands
+    "github.com/openkaiden/kdn/pkg/steplogger"
 )
 
 type <runtime-name>Runtime struct {
@@ -219,9 +219,9 @@ Edit `pkg/runtimesetup/register.go`:
 1. Add import:
 ```go
 import (
-    "github.com/kortex-hub/kortex-cli/pkg/runtime"
-    "github.com/kortex-hub/kortex-cli/pkg/runtime/fake"
-    "github.com/kortex-hub/kortex-cli/pkg/runtime/<runtime-name>"  // Add this
+    "github.com/openkaiden/kdn/pkg/runtime"
+    "github.com/openkaiden/kdn/pkg/runtime/fake"
+    "github.com/openkaiden/kdn/pkg/runtime/<runtime-name>"  // Add this
 )
 ```
 
@@ -240,7 +240,7 @@ var availableRuntimes = []runtimeFactory{
 **Required imports:**
 ```go
 import (
-    "github.com/kortex-hub/kortex-cli/pkg/steplogger"
+    "github.com/openkaiden/kdn/pkg/steplogger"
 )
 ```
 
@@ -265,7 +265,7 @@ If your runtime executes external CLI commands (e.g., via `exec.Command`), use `
 **Required imports:**
 ```go
 import (
-    "github.com/kortex-hub/kortex-cli/pkg/logger"
+    "github.com/openkaiden/kdn/pkg/logger"
 )
 ```
 
@@ -298,7 +298,7 @@ package <runtime-name>
 import (
     "context"
     "testing"
-    "github.com/kortex-hub/kortex-cli/pkg/steplogger"
+    "github.com/openkaiden/kdn/pkg/steplogger"
 )
 
 func TestNew(t *testing.T) {
@@ -559,7 +559,7 @@ func (r *myRuntime) mapState(platformState string) api.WorkspaceState {
 Use the predefined errors from `pkg/runtime`:
 
 ```go
-import "github.com/kortex-hub/kortex-cli/pkg/runtime"
+import "github.com/openkaiden/kdn/pkg/runtime"
 
 // Instance not found
 return runtime.RuntimeInfo{}, fmt.Errorf("%w: %s", runtime.ErrInstanceNotFound, id)

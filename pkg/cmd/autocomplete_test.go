@@ -23,8 +23,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/kortex-hub/kortex-cli/pkg/instances"
-	"github.com/kortex-hub/kortex-cli/pkg/runtime/fake"
+	"github.com/openkaiden/kdn/pkg/instances"
+	"github.com/openkaiden/kdn/pkg/runtime/fake"
 	"github.com/spf13/cobra"
 )
 

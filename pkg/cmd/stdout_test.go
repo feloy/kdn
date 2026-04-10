@@ -25,8 +25,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/kortex-hub/kortex-cli/pkg/instances"
-	"github.com/kortex-hub/kortex-cli/pkg/runtime/fake"
+	"github.com/openkaiden/kdn/pkg/instances"
+	"github.com/openkaiden/kdn/pkg/runtime/fake"
 )
 
 // TestCommands_OutputToStdout verifies that all commands output data to stdout (not stderr)

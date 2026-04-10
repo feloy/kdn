@@ -20,9 +20,9 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/kortex-hub/kortex-cli/pkg/runtime"
-	"github.com/kortex-hub/kortex-cli/pkg/runtime/podman/exec"
-	"github.com/kortex-hub/kortex-cli/pkg/steplogger"
+	"github.com/openkaiden/kdn/pkg/runtime"
+	"github.com/openkaiden/kdn/pkg/runtime/podman/exec"
+	"github.com/openkaiden/kdn/pkg/steplogger"
 )
 
 func TestStart_ValidatesID(t *testing.T) {

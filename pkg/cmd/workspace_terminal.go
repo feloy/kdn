@@ -23,8 +23,8 @@ import (
 	"fmt"
 	"path/filepath"
 
-	"github.com/kortex-hub/kortex-cli/pkg/instances"
-	"github.com/kortex-hub/kortex-cli/pkg/runtimesetup"
+	"github.com/openkaiden/kdn/pkg/instances"
+	"github.com/openkaiden/kdn/pkg/runtimesetup"
 	"github.com/spf13/cobra"
 )
 

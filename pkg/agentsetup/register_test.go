@@ -22,7 +22,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/kortex-hub/kortex-cli/pkg/agent"
+	"github.com/openkaiden/kdn/pkg/agent"
 )
 
 // fakeRegistrar implements AgentRegistrar for testing

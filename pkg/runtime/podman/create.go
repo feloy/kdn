@@ -22,10 +22,10 @@ import (
 	"strings"
 
 	api "github.com/kortex-hub/kortex-cli-api/cli/go"
-	"github.com/kortex-hub/kortex-cli/pkg/logger"
-	"github.com/kortex-hub/kortex-cli/pkg/runtime"
-	"github.com/kortex-hub/kortex-cli/pkg/runtime/podman/config"
-	"github.com/kortex-hub/kortex-cli/pkg/steplogger"
+	"github.com/openkaiden/kdn/pkg/logger"
+	"github.com/openkaiden/kdn/pkg/runtime"
+	"github.com/openkaiden/kdn/pkg/runtime/podman/config"
+	"github.com/openkaiden/kdn/pkg/steplogger"
 )
 
 // validateCreateParams validates the create parameters.

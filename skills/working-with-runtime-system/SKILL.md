@@ -24,7 +24,7 @@ The runtime system enables kdn to support multiple backend platforms through a c
 Commands use `runtimesetup.RegisterAll()` to automatically register all available runtimes:
 
 ```go
-import "github.com/kortex-hub/kortex-cli/pkg/runtimesetup"
+import "github.com/openkaiden/kdn/pkg/runtimesetup"
 
 // In command preRun
 manager, err := instances.NewManager(storageDir)

@@ -28,7 +28,7 @@ import (
 
 	"github.com/fatih/color"
 	api "github.com/kortex-hub/kortex-cli-api/cli/go"
-	"github.com/kortex-hub/kortex-cli/pkg/instances"
+	"github.com/openkaiden/kdn/pkg/instances"
 	"github.com/rodaine/table"
 	"github.com/spf13/cobra"
 )

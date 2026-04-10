@@ -17,7 +17,7 @@ package config
 import (
 	"fmt"
 
-	"github.com/kortex-hub/kortex-cli/pkg/runtime/podman/constants"
+	"github.com/openkaiden/kdn/pkg/runtime/podman/constants"
 )
 
 const (

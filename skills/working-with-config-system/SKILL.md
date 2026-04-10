@@ -186,7 +186,7 @@ Project-specific and global settings for environment variables and mounts:
       {"host": "$HOME/.ssh", "target": "$HOME/.ssh", "ro": true}
     ]
   },
-  "github.com/kortex-hub/kortex-cli": {
+  "github.com/openkaiden/kdn/": {
     "environment": [
       {
         "name": "PROJECT_VAR",
@@ -219,7 +219,7 @@ Project-specific and global settings for environment variables and mounts:
 
 ```go
 import (
-    "github.com/kortex-hub/kortex-cli/pkg/config"
+    "github.com/openkaiden/kdn/pkg/config"
     workspace "github.com/kortex-hub/kortex-cli-api/workspace-configuration/go"
 )
 
@@ -299,7 +299,7 @@ Result: `DEBUG=agent`, `WORKSPACE_VAR=value1`, `GLOBAL_VAR=global`, `PROJECT_VAR
 ## Loading Configuration Programmatically
 
 ```go
-import "github.com/kortex-hub/kortex-cli/pkg/config"
+import "github.com/openkaiden/kdn/pkg/config"
 
 // Load project config (includes global + project-specific merged)
 projectLoader, err := config.NewProjectConfigLoader(storageDir)

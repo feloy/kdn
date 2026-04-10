@@ -25,8 +25,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/kortex-hub/kortex-cli/pkg/cmd/testutil"
-	"github.com/kortex-hub/kortex-cli/pkg/instances"
+	"github.com/openkaiden/kdn/pkg/cmd/testutil"
+	"github.com/openkaiden/kdn/pkg/instances"
 	"github.com/spf13/cobra"
 )
 

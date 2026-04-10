@@ -21,7 +21,7 @@ package main
 import (
 	"os"
 
-	"github.com/kortex-hub/kortex-cli/pkg/cmd"
+	"github.com/openkaiden/kdn/pkg/cmd"
 )
 
 func main() {

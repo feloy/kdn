@@ -18,8 +18,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/kortex-hub/kortex-cli/pkg/runtime/podman/config"
-	"github.com/kortex-hub/kortex-cli/pkg/runtime/podman/constants"
+	"github.com/openkaiden/kdn/pkg/runtime/podman/config"
+	"github.com/openkaiden/kdn/pkg/runtime/podman/constants"
 )
 
 // generateSudoers generates the sudoers file content from a list of allowed binaries.

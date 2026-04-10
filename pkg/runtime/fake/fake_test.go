@@ -24,7 +24,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/kortex-hub/kortex-cli/pkg/runtime"
+	"github.com/openkaiden/kdn/pkg/runtime"
 )
 
 func TestFakeRuntime_Type(t *testing.T) {

@@ -25,7 +25,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/kortex-hub/kortex-cli/pkg/instances"
+	"github.com/openkaiden/kdn/pkg/instances"
 )
 
 func TestTerminalCmd(t *testing.T) {

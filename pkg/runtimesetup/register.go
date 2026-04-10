@@ -18,9 +18,9 @@ package runtimesetup
 import (
 	"sort"
 
-	"github.com/kortex-hub/kortex-cli/pkg/runtime"
-	"github.com/kortex-hub/kortex-cli/pkg/runtime/fake"
-	"github.com/kortex-hub/kortex-cli/pkg/runtime/podman"
+	"github.com/openkaiden/kdn/pkg/runtime"
+	"github.com/openkaiden/kdn/pkg/runtime/fake"
+	"github.com/openkaiden/kdn/pkg/runtime/podman"
 )
 
 // Registrar is an interface for types that can register runtimes.

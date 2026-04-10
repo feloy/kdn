@@ -22,7 +22,7 @@ package agentsetup
 import (
 	"fmt"
 
-	"github.com/kortex-hub/kortex-cli/pkg/agent"
+	"github.com/openkaiden/kdn/pkg/agent"
 )
 
 // AgentRegistrar is an interface for types that can register agents.

@@ -27,10 +27,10 @@ import (
 
 	api "github.com/kortex-hub/kortex-cli-api/cli/go"
 	workspace "github.com/kortex-hub/kortex-cli-api/workspace-configuration/go"
-	"github.com/kortex-hub/kortex-cli/pkg/agent"
-	"github.com/kortex-hub/kortex-cli/pkg/git"
-	"github.com/kortex-hub/kortex-cli/pkg/runtime"
-	"github.com/kortex-hub/kortex-cli/pkg/runtime/fake"
+	"github.com/openkaiden/kdn/pkg/agent"
+	"github.com/openkaiden/kdn/pkg/git"
+	"github.com/openkaiden/kdn/pkg/runtime"
+	"github.com/openkaiden/kdn/pkg/runtime/fake"
 )
 
 // fakeInstance is a test double for the Instance interface
@@ -1233,7 +1233,7 @@ func TestManager_Stop(t *testing.T) {
 		gitDetector := &fakeGitDetector{
 			repoInfo: &git.RepositoryInfo{
 				RootDir:      "/repo/root",
-				RemoteURL:    "https://github.com/kortex-hub/kortex-cli",
+				RemoteURL:    "https://github.com/openkaiden/kdn",
 				RelativePath: "",
 			},
 		}
@@ -1250,8 +1250,8 @@ func TestManager_Stop(t *testing.T) {
 		added, _ := manager.Add(ctx, AddOptions{Instance: inst, RuntimeType: "fake"})
 
 		// Verify project was set
-		if added.GetProject() != "https://github.com/kortex-hub/kortex-cli/" {
-			t.Errorf("After Add, project = %v, want 'https://github.com/kortex-hub/kortex-cli/'", added.GetProject())
+		if added.GetProject() != "https://github.com/openkaiden/kdn/" {
+			t.Errorf("After Add, project = %v, want 'https://github.com/openkaiden/kdn/'", added.GetProject())
 		}
 
 		// Start the instance
@@ -1262,8 +1262,8 @@ func TestManager_Stop(t *testing.T) {
 
 		// Verify project is still set after Start
 		updated, _ := manager.Get(added.GetID())
-		if updated.GetProject() != "https://github.com/kortex-hub/kortex-cli/" {
-			t.Errorf("After Start, project = %v, want 'https://github.com/kortex-hub/kortex-cli/'", updated.GetProject())
+		if updated.GetProject() != "https://github.com/openkaiden/kdn/" {
+			t.Errorf("After Start, project = %v, want 'https://github.com/openkaiden/kdn/'", updated.GetProject())
 		}
 	})
 
@@ -1277,7 +1277,7 @@ func TestManager_Stop(t *testing.T) {
 		gitDetector := &fakeGitDetector{
 			repoInfo: &git.RepositoryInfo{
 				RootDir:      "/repo/root",
-				RemoteURL:    "https://github.com/kortex-hub/kortex-cli",
+				RemoteURL:    "https://github.com/openkaiden/kdn",
 				RelativePath: "",
 			},
 		}
@@ -1296,8 +1296,8 @@ func TestManager_Stop(t *testing.T) {
 
 		// Verify project was set
 		running, _ := manager.Get(added.GetID())
-		if running.GetProject() != "https://github.com/kortex-hub/kortex-cli/" {
-			t.Errorf("After Start, project = %v, want 'https://github.com/kortex-hub/kortex-cli/'", running.GetProject())
+		if running.GetProject() != "https://github.com/openkaiden/kdn/" {
+			t.Errorf("After Start, project = %v, want 'https://github.com/openkaiden/kdn/'", running.GetProject())
 		}
 
 		// Stop the instance
@@ -1308,8 +1308,8 @@ func TestManager_Stop(t *testing.T) {
 
 		// Verify project is still set after Stop
 		updated, _ := manager.Get(added.GetID())
-		if updated.GetProject() != "https://github.com/kortex-hub/kortex-cli/" {
-			t.Errorf("After Stop, project = %v, want 'https://github.com/kortex-hub/kortex-cli/'", updated.GetProject())
+		if updated.GetProject() != "https://github.com/openkaiden/kdn/" {
+			t.Errorf("After Stop, project = %v, want 'https://github.com/openkaiden/kdn/'", updated.GetProject())
 		}
 	})
 

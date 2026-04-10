@@ -21,7 +21,7 @@ import (
 	"strings"
 
 	workspace "github.com/kortex-hub/kortex-cli-api/workspace-configuration/go"
-	"github.com/kortex-hub/kortex-cli/pkg/runtime/podman/constants"
+	"github.com/openkaiden/kdn/pkg/runtime/podman/constants"
 )
 
 // NOTE: Mount target escape validation ($SOURCES/../../etc) is enforced at config

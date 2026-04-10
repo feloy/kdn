@@ -98,7 +98,7 @@ Agent configurations are named `<agent-name>.json`. The Podman runtime provides 
 ## Using the Config Interface
 
 ```go
-import "github.com/kortex-hub/kortex-cli/pkg/runtime/podman/config"
+import "github.com/openkaiden/kdn/pkg/runtime/podman/config"
 
 // Create config manager (in Initialize method)
 configDir := filepath.Join(storageDir, "config")
@@ -147,7 +147,7 @@ The config system validates:
 The config system is used to generate Containerfiles dynamically:
 
 ```go
-import "github.com/kortex-hub/kortex-cli/pkg/runtime/podman"
+import "github.com/openkaiden/kdn/pkg/runtime/podman"
 
 // Generate Containerfile content from configs
 // hasAgentSettings = true adds a COPY instruction for default settings files

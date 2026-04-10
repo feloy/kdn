@@ -23,8 +23,8 @@ import (
 	"path/filepath"
 
 	api "github.com/kortex-hub/kortex-cli-api/cli/go"
-	"github.com/kortex-hub/kortex-cli/pkg/instances"
-	"github.com/kortex-hub/kortex-cli/pkg/runtimesetup"
+	"github.com/openkaiden/kdn/pkg/instances"
+	"github.com/openkaiden/kdn/pkg/runtimesetup"
 	"github.com/spf13/cobra"
 )
 

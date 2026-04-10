@@ -283,7 +283,7 @@ The manager integrates with the agent registry to provide automatic onboarding c
 Register all available agents using the centralized registration:
 
 ```go
-import "github.com/kortex-hub/kortex-cli/pkg/agentsetup"
+import "github.com/openkaiden/kdn/pkg/agentsetup"
 
 // In preRun or initialization code
 if err := agentsetup.RegisterAll(manager); err != nil {
@@ -353,7 +353,7 @@ The manager automatically detects the project identifier when adding instances:
 1. **Git repository with remote**: Uses repository remote URL (without `.git`) plus relative path
    - Checks `upstream` remote first (useful for forks)
    - Falls back to `origin` remote if `upstream` doesn't exist
-   - Example: `https://github.com/kortex-hub/kortex-cli/` (at root) or `https://github.com/kortex-hub/kortex-cli/pkg/git` (in subdirectory)
+   - Example: `https://github.com/openkaiden/kdn/` (at root) or `https://github.com/openkaiden/kdn/pkg/git` (in subdirectory)
 
 2. **Git repository without remote**: Uses repository root directory plus relative path
    - Example: `/home/user/local-repo` (at root) or `/home/user/local-repo/pkg/utils` (in subdirectory)
