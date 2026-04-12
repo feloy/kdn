@@ -84,13 +84,29 @@ func TestGenerateProxyStartScript(t *testing.T) {
 		}
 	})
 
-	t.Run("is idempotent - deletes table before recreating", func(t *testing.T) {
+	t.Run("is idempotent - deletes tables before recreating", func(t *testing.T) {
 		t.Parallel()
 
 		script := generateProxyStartScript()
 
 		if !strings.Contains(script, "nft delete table ip filter") {
-			t.Error("Expected proxy start script to delete existing filter table for idempotency")
+			t.Error("Expected proxy start script to delete existing ip filter table for idempotency")
+		}
+		if !strings.Contains(script, "nft delete table ip6 filter") {
+			t.Error("Expected proxy start script to delete existing ip6 filter table for idempotency")
+		}
+	})
+
+	t.Run("covers IPv6 traffic", func(t *testing.T) {
+		t.Parallel()
+
+		script := generateProxyStartScript()
+
+		if !strings.Contains(script, "nft add table ip6 filter") {
+			t.Error("Expected proxy start script to create ip6 filter table")
+		}
+		if !strings.Contains(script, "nft add chain ip6 filter output") {
+			t.Error("Expected proxy start script to create ip6 output chain")
 		}
 	})
 

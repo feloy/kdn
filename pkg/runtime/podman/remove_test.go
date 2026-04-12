@@ -220,7 +220,7 @@ func TestIsNotFoundError(t *testing.T) {
 		{
 			name:     "failed to inspect pod with other error",
 			err:      fmt.Errorf("failed to inspect pod: permission denied"),
-			expected: true,
+			expected: false,
 		},
 		{
 			name:     "other error",

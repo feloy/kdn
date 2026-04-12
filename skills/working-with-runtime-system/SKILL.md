@@ -171,7 +171,7 @@ The Terminal interface follows the same pattern as `StorageAware` - it's optiona
 
 ```go
 if terminalRuntime, ok := runtime.(Terminal); ok {
-    return terminalRuntime.Terminal(ctx, agent, instanceID, command)
+    return terminalRuntime.Terminal(ctx, instanceID, agent, command)
 }
 return errors.New("runtime does not support terminal sessions")
 ```

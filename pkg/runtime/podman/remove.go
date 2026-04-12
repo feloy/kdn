@@ -78,12 +78,13 @@ func isNotFoundError(err error) bool {
 	if err == nil {
 		return false
 	}
-	errMsg := err.Error()
-	// Check for podman-specific "not found" error messages
+	errMsg := strings.ToLower(err.Error())
+	// Check for podman-specific "not found" error messages.
+	// Only match concrete not-found variants; do not match generic inspect failures
+	// so that permission or runtime errors are not silently swallowed.
 	return strings.Contains(errMsg, "no such container") ||
 		strings.Contains(errMsg, "no such pod") ||
 		strings.Contains(errMsg, "pod not found") ||
 		strings.Contains(errMsg, "no such object") ||
-		strings.Contains(errMsg, "error getting container") ||
-		strings.Contains(errMsg, "failed to inspect pod")
+		strings.Contains(errMsg, "error getting container")
 }

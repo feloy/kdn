@@ -447,8 +447,11 @@ func TestBuildWorkspaceContainerArgs(t *testing.T) {
 		if !strings.Contains(argsStr, "-w /workspace/sources") {
 			t.Errorf("Expected working directory, got: %s", argsStr)
 		}
-		if !strings.Contains(argsStr, imageName) {
-			t.Errorf("Expected image name %q, got: %s", imageName, argsStr)
+		// args ends with [..., imageName, "sleep", "infinity"]; check the exact position
+		// rather than searching argsStr, because imageName equals podN which also
+		// appears in the --pod flag value.
+		if len(args) < 3 || args[len(args)-3] != imageName {
+			t.Errorf("Expected image name %q at args[%d], got: %s", imageName, len(args)-3, argsStr)
 		}
 		if !strings.Contains(argsStr, "sleep infinity") {
 			t.Errorf("Expected sleep infinity command, got: %s", argsStr)
@@ -667,8 +670,11 @@ func TestBuildWorkspaceContainerArgs(t *testing.T) {
 		if !strings.Contains(argsStr, "-w /workspace/sources") {
 			t.Error("Expected working directory")
 		}
-		if !strings.Contains(argsStr, imageName) {
-			t.Error("Expected image name")
+		// args ends with [..., imageName, "sleep", "infinity"]; check the exact position
+		// rather than searching argsStr, because imageName equals podN which also
+		// appears in the --pod flag value.
+		if len(args) < 3 || args[len(args)-3] != imageName {
+			t.Errorf("Expected image name %q at args[%d], got: %s", imageName, len(args)-3, argsStr)
 		}
 		if !strings.Contains(argsStr, "sleep infinity") {
 			t.Error("Expected sleep infinity command")

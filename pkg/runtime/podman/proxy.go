@@ -62,8 +62,10 @@ func generateProxyStartScript() string {
 set -e
 
 # Restrict outbound network in the shared pod network namespace.
-# Delete and recreate the filter table so rules are clean on every start
+# Delete and recreate the filter tables so rules are clean on every start
 # (the pod network namespace persists across stop/start, not just pod rm).
+
+# IPv4 rules
 nft delete table ip filter 2>/dev/null || true
 nft add table ip filter
 nft add chain ip filter output '{ type filter hook output priority 0; policy drop; }'
@@ -73,6 +75,14 @@ nft add rule ip filter output ct state established,related accept
 nft add rule ip filter output oif lo accept
 # Squid's own outbound traffic must reach the internet.
 nft add rule ip filter output meta skuid squid accept
+
+# IPv6 rules (mirror of IPv4 to block direct outbound IPv6 from the workspace).
+nft delete table ip6 filter 2>/dev/null || true
+nft add table ip6 filter
+nft add chain ip6 filter output '{ type filter hook output priority 0; policy drop; }'
+nft add rule ip6 filter output ct state established,related accept
+nft add rule ip6 filter output oif lo accept
+nft add rule ip6 filter output meta skuid squid accept
 
 # Remove a stale PID file if present (left by a previous run after pod stop/start).
 rm -f /run/squid.pid
