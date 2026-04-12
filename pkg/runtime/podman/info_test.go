@@ -112,6 +112,13 @@ func TestInfo_Success(t *testing.T) {
 			if info.Info["workspace_container"] != expectedWsContainer {
 				t.Errorf("Expected workspace_container %s, got %s", expectedWsContainer, info.Info["workspace_container"])
 			}
+			expectedProxyContainer := proxyContainerName(tt.podID)
+			if info.Info["proxy_container"] != expectedProxyContainer {
+				t.Errorf("Expected proxy_container %s, got %s", expectedProxyContainer, info.Info["proxy_container"])
+			}
+			if info.Info["image_name"] != tt.podID {
+				t.Errorf("Expected image_name %s, got %s", tt.podID, info.Info["image_name"])
+			}
 		})
 	}
 }
@@ -234,6 +241,13 @@ func TestGetPodInfo_ParsesOutput(t *testing.T) {
 			}
 			if info.Info["pod_name"] != tt.podID {
 				t.Errorf("Expected pod_name %s, got %s", tt.podID, info.Info["pod_name"])
+			}
+			expectedProxyContainer := proxyContainerName(tt.podID)
+			if info.Info["proxy_container"] != expectedProxyContainer {
+				t.Errorf("Expected proxy_container %s, got %s", expectedProxyContainer, info.Info["proxy_container"])
+			}
+			if info.Info["image_name"] != tt.podID {
+				t.Errorf("Expected image_name %s, got %s", tt.podID, info.Info["image_name"])
 			}
 		})
 	}

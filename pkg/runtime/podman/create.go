@@ -314,14 +314,14 @@ func (p *podmanRuntime) Create(ctx context.Context, params runtime.CreateParams)
 	// All steps succeeded — disable cleanup so the deferred call is a no-op.
 	cleanupOnError = func() {}
 
-	// Return RuntimeInfo with the pod name as ID
+	// Return RuntimeInfo with the pod name as ID.
+	// source_path and agent are stored in the instance record by the manager
+	// and are not part of the pod-level runtime info.
 	info := map[string]string{
 		"pod_name":            podN,
 		"workspace_container": wsContainer,
 		"proxy_container":     proxyContainer,
 		"image_name":          imageName,
-		"source_path":         params.SourcePath,
-		"agent":               params.Agent,
 	}
 
 	return runtime.RuntimeInfo{

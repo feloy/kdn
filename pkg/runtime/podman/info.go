@@ -77,10 +77,13 @@ func (p *podmanRuntime) getPodInfo(ctx context.Context, id string) (runtime.Runt
 	// Map podman pod state to valid WorkspaceState
 	state := mapPodmanPodState(podmanState)
 
-	// Build the info map
+	// Build the info map with all pod-derivable fields so Info() returns
+	// the same key set as Create().
 	info := map[string]string{
 		"pod_name":            podN,
 		"workspace_container": workspaceContainerName(podN),
+		"proxy_container":     proxyContainerName(podN),
+		"image_name":          podN,
 	}
 
 	return runtime.RuntimeInfo{
