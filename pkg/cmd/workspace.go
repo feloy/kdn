@@ -19,6 +19,8 @@
 package cmd
 
 import (
+	"fmt"
+
 	"github.com/spf13/cobra"
 )
 
@@ -27,7 +29,15 @@ func NewWorkspaceCmd() *cobra.Command {
 		Use:   "workspace",
 		Short: "Manage workspaces",
 		Long:  "Manage workspaces registered with kdn init",
-		Args:  cobra.NoArgs,
+		Args: func(cmd *cobra.Command, args []string) error {
+			if len(args) > 0 {
+				return fmt.Errorf("unknown command %q for %q", args[0], cmd.CommandPath())
+			}
+			return nil
+		},
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return cmd.Help()
+		},
 	}
 
 	// Add subcommands

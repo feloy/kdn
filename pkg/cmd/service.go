@@ -19,6 +19,8 @@
 package cmd
 
 import (
+	"fmt"
+
 	"github.com/spf13/cobra"
 )
 
@@ -27,7 +29,15 @@ func NewServiceCmd() *cobra.Command {
 		Use:   "service",
 		Short: "Manage services",
 		Long:  "Manage secret services registered with kdn",
-		Args:  cobra.NoArgs,
+		Args: func(cmd *cobra.Command, args []string) error {
+			if len(args) > 0 {
+				return fmt.Errorf("unknown command %q for %q", args[0], cmd.CommandPath())
+			}
+			return nil
+		},
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return cmd.Help()
+		},
 	}
 
 	// Add subcommands

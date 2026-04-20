@@ -68,6 +68,28 @@ func TestExecute_NoArgs(t *testing.T) {
 	}
 }
 
+func TestExecute_UnknownCommand(t *testing.T) {
+	t.Parallel()
+
+	rootCmd := NewRootCmd()
+	buf := new(bytes.Buffer)
+	rootCmd.SetOut(buf)
+	rootCmd.SetErr(buf)
+	rootCmd.SetArgs([]string{"foobar"})
+
+	err := rootCmd.Execute()
+	if err == nil {
+		t.Fatal("Expected Execute() to return an error for unknown command")
+	}
+
+	if !strings.Contains(err.Error(), "unknown command") {
+		t.Errorf("Expected error to contain 'unknown command', got: %s", err.Error())
+	}
+	if !strings.Contains(err.Error(), "foobar") {
+		t.Errorf("Expected error to contain 'foobar', got: %s", err.Error())
+	}
+}
+
 func TestRootCmd_StorageFlag(t *testing.T) {
 	t.Parallel()
 

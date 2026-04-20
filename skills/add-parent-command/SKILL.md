@@ -24,6 +24,8 @@ Create `pkg/cmd/<parent>.go` with the following structure:
 package cmd
 
 import (
+    "fmt"
+
     "github.com/spf13/cobra"
 )
 
@@ -37,7 +39,15 @@ kdn <parent> --help
 
 # Execute a subcommand
 kdn <parent> <subcommand>`,
-        Args: cobra.NoArgs,  // Parent commands typically don't accept args directly
+        Args: func(cmd *cobra.Command, args []string) error {
+            if len(args) > 0 {
+                return fmt.Errorf("unknown command %q for %q", args[0], cmd.CommandPath())
+            }
+            return nil
+        },
+        RunE: func(cmd *cobra.Command, args []string) error {
+            return cmd.Help()
+        },
     }
 
     // Add subcommands
@@ -55,6 +65,8 @@ kdn <parent> <subcommand>`,
 package cmd
 
 import (
+    "fmt"
+
     "github.com/spf13/cobra"
 )
 
@@ -73,7 +85,15 @@ kdn workspace list
 
 # Remove a workspace
 kdn workspace remove <id>`,
-        Args: cobra.NoArgs,
+        Args: func(cmd *cobra.Command, args []string) error {
+            if len(args) > 0 {
+                return fmt.Errorf("unknown command %q for %q", args[0], cmd.CommandPath())
+            }
+            return nil
+        },
+        RunE: func(cmd *cobra.Command, args []string) error {
+            return cmd.Help()
+        },
     }
 
     // Add subcommands
@@ -251,12 +271,12 @@ Update relevant documentation to describe the parent command and its subcommands
 
 ## Key Points
 
-- **No Direct Execution**: Parent commands typically don't have RunE/Run - they just organize subcommands
-- **Args Validation**: Always set `Args: cobra.NoArgs` since parent commands don't accept arguments directly
-- **Subcommand Organization**: Use `cmd.AddCommand()` to register all subcommands
-- **Help Text**: Provide clear Short and Long descriptions explaining the purpose of the command group
-- **Examples**: Show how to use --help and demonstrate key subcommands
-- **Testing**: Verify subcommand structure and examples
+- **Always set RunE**: Parent commands must define `RunE` (showing help) so that Cobra treats them as runnable and runs `Args` validation. Without `RunE`, Cobra skips `Args` entirely and returns exit code 0 for unknown subcommands.
+- **Custom Args for clear errors**: Use a custom `Args` function instead of `cobra.NoArgs` to produce `unknown command "foo" for "kdn parent"` rather than the generic `accepts 0 arg(s), received 1`.
+- **Subcommand Organization**: Use `cmd.AddCommand()` to register all subcommands.
+- **Help Text**: Provide clear Short and Long descriptions explaining the purpose of the command group.
+- **Examples**: Show how to use --help and demonstrate key subcommands.
+- **Testing**: Verify subcommand structure and that unknown subcommands return a non-zero exit code.
 
 ## Parent Command Patterns
 
@@ -267,7 +287,15 @@ func NewParentCmd() *cobra.Command {
     cmd := &cobra.Command{
         Use:   "parent",
         Short: "Parent command category",
-        Args:  cobra.NoArgs,
+        Args: func(cmd *cobra.Command, args []string) error {
+            if len(args) > 0 {
+                return fmt.Errorf("unknown command %q for %q", args[0], cmd.CommandPath())
+            }
+            return nil
+        },
+        RunE: func(cmd *cobra.Command, args []string) error {
+            return cmd.Help()
+        },
     }
 
     cmd.AddCommand(NewParentSubCmd1())
@@ -286,7 +314,15 @@ func NewParentCmd() *cobra.Command {
     cmd := &cobra.Command{
         Use:   "parent",
         Short: "Parent command category",
-        Args:  cobra.NoArgs,
+        Args: func(cmd *cobra.Command, args []string) error {
+            if len(args) > 0 {
+                return fmt.Errorf("unknown command %q for %q", args[0], cmd.CommandPath())
+            }
+            return nil
+        },
+        RunE: func(cmd *cobra.Command, args []string) error {
+            return cmd.Help()
+        },
     }
 
     // Persistent flags are inherited by subcommands
@@ -308,7 +344,15 @@ func NewParentCmd() *cobra.Command {
     cmd := &cobra.Command{
         Use:   "parent",
         Short: "Parent command category",
-        Args:  cobra.NoArgs,
+        Args: func(cmd *cobra.Command, args []string) error {
+            if len(args) > 0 {
+                return fmt.Errorf("unknown command %q for %q", args[0], cmd.CommandPath())
+            }
+            return nil
+        },
+        RunE: func(cmd *cobra.Command, args []string) error {
+            return cmd.Help()
+        },
         PersistentPreRun: func(cmd *cobra.Command, args []string) {
             // Common initialization for all subcommands
             // This runs before any subcommand's PreRun
@@ -345,6 +389,8 @@ pkg/cmd/
 package cmd
 
 import (
+    "fmt"
+
     "github.com/spf13/cobra"
 )
 
@@ -367,7 +413,15 @@ kdn workspace remove <id>
 
 # Initialize a new workspace
 kdn workspace init /path/to/project`,
-        Args: cobra.NoArgs,
+        Args: func(cmd *cobra.Command, args []string) error {
+            if len(args) > 0 {
+                return fmt.Errorf("unknown command %q for %q", args[0], cmd.CommandPath())
+            }
+            return nil
+        },
+        RunE: func(cmd *cobra.Command, args []string) error {
+            return cmd.Help()
+        },
     }
 
     // Add subcommands

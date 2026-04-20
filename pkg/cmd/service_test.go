@@ -19,6 +19,8 @@
 package cmd
 
 import (
+	"bytes"
+	"strings"
 	"testing"
 )
 
@@ -50,5 +52,27 @@ func TestServiceCmd(t *testing.T) {
 
 	if !foundList {
 		t.Error("Expected service command to have 'list' subcommand")
+	}
+}
+
+func TestServiceCmd_UnknownCommand(t *testing.T) {
+	t.Parallel()
+
+	rootCmd := NewRootCmd()
+	buf := new(bytes.Buffer)
+	rootCmd.SetOut(buf)
+	rootCmd.SetErr(buf)
+	rootCmd.SetArgs([]string{"service", "foobar"})
+
+	err := rootCmd.Execute()
+	if err == nil {
+		t.Fatal("Expected Execute() to return an error for unknown command")
+	}
+
+	if !strings.Contains(err.Error(), "unknown command") {
+		t.Errorf("Expected error to contain 'unknown command', got: %s", err.Error())
+	}
+	if !strings.Contains(err.Error(), "foobar") {
+		t.Errorf("Expected error to contain 'foobar', got: %s", err.Error())
 	}
 }

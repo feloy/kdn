@@ -19,6 +19,7 @@
 package cmd
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 
@@ -39,10 +40,18 @@ func NewRootCmd() *cobra.Command {
 	}
 
 	rootCmd := &cobra.Command{
-		Use:          "kdn",
-		Short:        "Launch and manage AI agent workspaces with custom configurations",
-		Args:         cobra.NoArgs,
+		Use:   "kdn",
+		Short: "Launch and manage AI agent workspaces with custom configurations",
+		Args: func(cmd *cobra.Command, args []string) error {
+			if len(args) > 0 {
+				return fmt.Errorf("unknown command %q for %q", args[0], cmd.CommandPath())
+			}
+			return nil
+		},
 		SilenceUsage: true,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return cmd.Help()
+		},
 	}
 
 	// Add command groups
