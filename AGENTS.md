@@ -253,8 +253,8 @@ The Podman runtime supports runtime-specific configuration for **building and co
 
 Skills are reusable capabilities that can be discovered and executed by AI agents:
 
-- **Location**: `skills/<skill-name>/SKILL.md`
-- **Claude support**: Skills are symlinked in `.claude/skills/` for Claude Code
+- **Location**: `.agents/skills/<skill-name>/SKILL.md`
+- **Claude support**: `.claude/skills` is a symlink to `../.agents/skills`, so Claude Code discovers skills automatically
 - **Format**: Each SKILL.md contains:
   - YAML frontmatter with `name`, `description`, `argument-hint`
   - Detailed instructions for execution
@@ -272,9 +272,9 @@ Skills can be provided to workspaces via the `skills` field in `workspace.json` 
 The `Agent` interface (`pkg/agent/agent.go`) exposes `SkillsDir() string` which returns the container path (using the `$HOME` variable) where skill directories should be mounted. The manager calls this during `Add()` to convert `WorkspaceConfig.Skills` entries into `workspace.Mount` entries before passing the config to the runtime.
 
 ### Adding a New Skill
-1. Create directory: `skills/<skill-name>/`
+1. Create directory: `.agents/skills/<skill-name>/`
 2. Create SKILL.md with frontmatter and instructions
-3. Symlink in `.claude/skills/`: `ln -s ../../skills/<skill-name> .claude/skills/<skill-name>`
+3. No symlink step needed — `.claude/skills` already symlinks to `.agents/skills/`
 
 ### Adding a New Command
 
