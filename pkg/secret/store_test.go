@@ -135,7 +135,8 @@ func TestStore_Create_ErrorsOnDuplicate(t *testing.T) {
 	t.Parallel()
 
 	dir := t.TempDir()
-	st := newStoreWithKeyring(dir, &fakeKeyring{})
+	kr := &fakeKeyring{}
+	st := newStoreWithKeyring(dir, kr)
 
 	params := CreateParams{
 		Name:           "my-token",
@@ -150,12 +151,18 @@ func TestStore_Create_ErrorsOnDuplicate(t *testing.T) {
 		t.Fatalf("first Create() failed: %v", err)
 	}
 
+	callsBefore := len(kr.calls)
+	params.Value = "v2"
 	err := st.Create(params)
 	if err == nil {
 		t.Fatal("expected error when creating duplicate secret")
 	}
 	if !errors.Is(err, ErrSecretAlreadyExists) {
 		t.Errorf("expected ErrSecretAlreadyExists, got: %v", err)
+	}
+	// Keychain must not be touched when the duplicate is detected
+	if len(kr.calls) != callsBefore {
+		t.Errorf("keychain was written despite duplicate: got %d total calls, want %d", len(kr.calls), callsBefore)
 	}
 }
 

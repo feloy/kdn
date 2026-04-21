@@ -84,25 +84,12 @@ type secretsFile struct {
 }
 
 // Create stores the secret value in the system keychain then saves metadata.
+// The duplicate check is performed before writing to the keychain so that an
+// existing keychain entry is never overwritten when the name is already taken.
 func (s *store) Create(params CreateParams) error {
-	if err := s.kr.Set(keyringService, params.Name, params.Value); err != nil {
-		return fmt.Errorf("failed to store secret in keychain: %w", err)
-	}
-	return s.saveMetadata(params)
-}
-
-func (s *store) saveMetadata(params CreateParams) error {
-	secretsPath := filepath.Join(s.storageDir, secretsFileName)
-
-	var sf secretsFile
-	data, err := os.ReadFile(secretsPath)
-	if err != nil && !os.IsNotExist(err) {
-		return fmt.Errorf("failed to read secrets file: %w", err)
-	}
-	if err == nil {
-		if jsonErr := json.Unmarshal(data, &sf); jsonErr != nil {
-			return fmt.Errorf("failed to parse secrets file: %w", jsonErr)
-		}
+	sf, err := s.loadSecretsFile()
+	if err != nil {
+		return err
 	}
 
 	for _, existing := range sf.Secrets {
@@ -111,7 +98,33 @@ func (s *store) saveMetadata(params CreateParams) error {
 		}
 	}
 
-	record := secretRecord{
+	if err := s.kr.Set(keyringService, params.Name, params.Value); err != nil {
+		return fmt.Errorf("failed to store secret in keychain: %w", err)
+	}
+
+	return s.appendAndSave(sf, params)
+}
+
+// loadSecretsFile reads and parses secrets.json, returning an empty struct when
+// the file does not yet exist.
+func (s *store) loadSecretsFile() (secretsFile, error) {
+	var sf secretsFile
+	data, err := os.ReadFile(filepath.Join(s.storageDir, secretsFileName))
+	if os.IsNotExist(err) {
+		return sf, nil
+	}
+	if err != nil {
+		return sf, fmt.Errorf("failed to read secrets file: %w", err)
+	}
+	if err := json.Unmarshal(data, &sf); err != nil {
+		return sf, fmt.Errorf("failed to parse secrets file: %w", err)
+	}
+	return sf, nil
+}
+
+// appendAndSave appends the new record to sf and persists it to disk.
+func (s *store) appendAndSave(sf secretsFile, params CreateParams) error {
+	sf.Secrets = append(sf.Secrets, secretRecord{
 		Name:           params.Name,
 		Type:           params.Type,
 		Description:    params.Description,
@@ -119,8 +132,7 @@ func (s *store) saveMetadata(params CreateParams) error {
 		Path:           params.Path,
 		Header:         params.Header,
 		HeaderTemplate: params.HeaderTemplate,
-	}
-	sf.Secrets = append(sf.Secrets, record)
+	})
 
 	jsonData, err := json.MarshalIndent(sf, "", "  ")
 	if err != nil {
@@ -131,7 +143,7 @@ func (s *store) saveMetadata(params CreateParams) error {
 		return fmt.Errorf("failed to create storage directory: %w", err)
 	}
 
-	if err := os.WriteFile(secretsPath, jsonData, 0600); err != nil {
+	if err := os.WriteFile(filepath.Join(s.storageDir, secretsFileName), jsonData, 0600); err != nil {
 		return fmt.Errorf("failed to write secrets file: %w", err)
 	}
 
