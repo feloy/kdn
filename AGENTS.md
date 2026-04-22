@@ -186,6 +186,8 @@ The secret service system provides a pluggable architecture for managing secret 
 - **Registry** (`pkg/secretservice/registry.go`): Manages secret service registration and discovery
 - **Centralized Registration** (`pkg/secretservicesetup/register.go`): Automatically registers all available secret services; `ListAvailable()` returns the names of all registered services (used by commands to derive valid `--type` values dynamically)
 
+**For detailed guidance on the full secrets abstraction (Store, registry, adding new types), use:** `/working-with-secrets`
+
 ### StepLogger System
 
 The StepLogger system provides user-facing progress feedback during runtime operations with spinners and completion messages.
