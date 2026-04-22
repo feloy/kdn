@@ -40,9 +40,13 @@ type CreateParams struct {
 
 // ListItem holds the metadata fields returned by List.
 type ListItem struct {
-	Name        string
-	Type        string
-	Description string
+	Name           string
+	Type           string
+	Description    string
+	Hosts          []string
+	Path           string
+	Header         string
+	HeaderTemplate string
 }
 
 // Store manages persistent storage of secrets.

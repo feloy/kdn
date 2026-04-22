@@ -116,9 +116,13 @@ func (s *store) List() ([]ListItem, error) {
 	items := make([]ListItem, 0, len(sf.Secrets))
 	for _, rec := range sf.Secrets {
 		items = append(items, ListItem{
-			Name:        rec.Name,
-			Type:        rec.Type,
-			Description: rec.Description,
+			Name:           rec.Name,
+			Type:           rec.Type,
+			Description:    rec.Description,
+			Hosts:          rec.Hosts,
+			Path:           rec.Path,
+			Header:         rec.Header,
+			HeaderTemplate: rec.HeaderTemplate,
 		})
 	}
 	sort.Slice(items, func(i, j int) bool { return items[i].Name < items[j].Name })

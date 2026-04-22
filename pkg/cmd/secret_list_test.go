@@ -68,7 +68,7 @@ func TestSecretListCmd_Examples(t *testing.T) {
 		t.Fatalf("failed to parse examples: %v", err)
 	}
 
-	expectedCount := 1
+	expectedCount := 3
 	if len(commands) != expectedCount {
 		t.Errorf("expected %d example commands, got %d", expectedCount, len(commands))
 	}
@@ -91,6 +91,18 @@ func TestSecretListCmd_PreRun(t *testing.T) {
 	}
 	if c.store == nil {
 		t.Error("expected store to be initialised")
+	}
+}
+
+func TestSecretListCmd_PreRun_InvalidOutput(t *testing.T) {
+	t.Parallel()
+
+	c := &secretListCmd{output: "xml"}
+	cmd := &cobra.Command{}
+	cmd.Flags().String("storage", t.TempDir(), "")
+
+	if err := c.preRun(cmd, []string{}); err == nil {
+		t.Fatal("expected error for unsupported output format")
 	}
 }
 
@@ -144,13 +156,74 @@ func TestSecretListCmd_Run(t *testing.T) {
 		}
 	})
 
+	t.Run("json output contains all fields", func(t *testing.T) {
+		t.Parallel()
+
+		c := &secretListCmd{
+			output: "json",
+			store: &fakeListStore{
+				items: []secret.ListItem{
+					{
+						Name:           "my-token",
+						Type:           "other",
+						Description:    "My token",
+						Hosts:          []string{"api.example.com"},
+						Path:           "/v1",
+						Header:         "Authorization",
+						HeaderTemplate: "Bearer ${value}",
+					},
+				},
+			},
+		}
+		root := &cobra.Command{}
+		var out bytes.Buffer
+		root.SetOut(&out)
+		child := &cobra.Command{RunE: c.run}
+		root.AddCommand(child)
+
+		if err := child.RunE(child, []string{}); err != nil {
+			t.Fatalf("run() failed: %v", err)
+		}
+		output := out.String()
+		for _, want := range []string{`"items"`, `"my-token"`, `"other"`, `"My token"`, `"api.example.com"`, `"/v1"`, `"Authorization"`, `"Bearer ${value}"`} {
+			if !strings.Contains(output, want) {
+				t.Errorf("expected %q in JSON output, got: %s", want, output)
+			}
+		}
+	})
+
+	t.Run("json output empty list returns items array", func(t *testing.T) {
+		t.Parallel()
+
+		c := &secretListCmd{output: "json", store: &fakeListStore{}}
+		root := &cobra.Command{}
+		var out bytes.Buffer
+		root.SetOut(&out)
+		child := &cobra.Command{RunE: c.run}
+		root.AddCommand(child)
+
+		if err := child.RunE(child, []string{}); err != nil {
+			t.Fatalf("run() failed: %v", err)
+		}
+		if !strings.Contains(out.String(), `"items"`) {
+			t.Errorf("expected JSON with items key, got: %s", out.String())
+		}
+	})
+
 	t.Run("store error propagates", func(t *testing.T) {
 		t.Parallel()
 
-		c := &secretListCmd{store: &fakeListStore{err: errors.New("store error")}}
+		sentinel := errors.New("store error")
+		c := &secretListCmd{store: &fakeListStore{err: sentinel}}
+		var out bytes.Buffer
 		cmd := &cobra.Command{}
-		if err := c.run(cmd, []string{}); err == nil {
+		cmd.SetOut(&out)
+		err := c.run(cmd, []string{})
+		if err == nil {
 			t.Fatal("expected error when store fails")
+		}
+		if !errors.Is(err, sentinel) {
+			t.Errorf("expected error to wrap sentinel, got: %v", err)
 		}
 	})
 }

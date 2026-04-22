@@ -207,7 +207,9 @@ func TestStore_List(t *testing.T) {
 		if items[0].Name != "tok1" || items[0].Type != "github" || items[0].Description != "first" {
 			t.Errorf("unexpected item[0]: %+v", items[0])
 		}
-		if items[1].Name != "tok2" || items[1].Type != TypeOther {
+		if items[1].Name != "tok2" || items[1].Type != TypeOther ||
+			len(items[1].Hosts) != 1 || items[1].Hosts[0] != "example.com" ||
+			items[1].Path != "/" || items[1].Header != "X-Key" || items[1].HeaderTemplate != "${value}" {
 			t.Errorf("unexpected item[1]: %+v", items[1])
 		}
 	})
