@@ -178,22 +178,3 @@ func TestStore_Create_KeychainError(t *testing.T) {
 	}
 }
 
-func TestIsValidType(t *testing.T) {
-	t.Parallel()
-
-	for _, tt := range []struct {
-		input string
-		valid bool
-	}{
-		{"github", true},
-		{"slack", true},
-		{"other", true},
-		{"", false},
-		{"custom", false},
-		{"GITHUB", false},
-	} {
-		if got := IsValidType(tt.input); got != tt.valid {
-			t.Errorf("IsValidType(%q) = %v, want %v", tt.input, got, tt.valid)
-		}
-	}
-}

@@ -21,9 +21,11 @@ package cmd
 import (
 	"fmt"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/openkaiden/kdn/pkg/secret"
+	"github.com/openkaiden/kdn/pkg/secretservicesetup"
 	"github.com/spf13/cobra"
 )
 
@@ -36,14 +38,24 @@ type secretCreateCmd struct {
 	header         string
 	headerTemplate string
 	store          secret.Store
+	validTypes     []string
+}
+
+func (s *secretCreateCmd) isValidType(t string) bool {
+	for _, v := range s.validTypes {
+		if t == v {
+			return true
+		}
+	}
+	return false
 }
 
 func (s *secretCreateCmd) preRun(cmd *cobra.Command, args []string) error {
 	if s.secretType == "" {
 		return fmt.Errorf("--type is required")
 	}
-	if !secret.IsValidType(s.secretType) {
-		return fmt.Errorf("invalid --type %q: must be one of %s", s.secretType, strings.Join(secret.SupportedTypes, ", "))
+	if !s.isValidType(s.secretType) {
+		return fmt.Errorf("invalid --type %q: must be one of %s", s.secretType, strings.Join(s.validTypes, ", "))
 	}
 	if s.value == "" {
 		return fmt.Errorf("--value is required")
@@ -114,26 +126,28 @@ func (s *secretCreateCmd) run(cmd *cobra.Command, args []string) error {
 }
 
 func NewSecretCreateCmd() *cobra.Command {
-	c := &secretCreateCmd{}
+	registeredTypes := secretservicesetup.ListAvailable()
+	sort.Strings(registeredTypes)
+	validTypes := append(registeredTypes, secret.TypeOther)
+	typesStr := strings.Join(validTypes, ", ")
+
+	c := &secretCreateCmd{validTypes: validTypes}
 
 	cmd := &cobra.Command{
 		Use:   "create <name>",
 		Short: "Create a new secret",
-		Long: `Create a new secret and store its value in the system keychain.
+		Long: fmt.Sprintf(`Create a new secret and store its value in the system keychain.
 
 The secret value is stored securely in the system keychain (GNOME Keyring on
 Linux, Keychain on macOS, DPAPI on Windows). Non-sensitive metadata (type,
 hosts, path, header template) is persisted in the kdn storage directory.
 
-Accepted types: github, slack, other.
+Accepted types: %s.
 
 When --type=other, the flags --host, --path, --header, and --headerTemplate
-are all required. For any other type, these flags must not be specified.`,
+are all required. For any other type, these flags must not be specified.`, typesStr),
 		Example: `# Create a GitHub token secret
 kdn secret create my-github-token --type github --value ghp_mytoken
-
-# Create a Slack token secret
-kdn secret create my-slack-token --type slack --value xoxb-mytoken
 
 # Create a custom secret (type=other) with all required descriptor flags
 kdn secret create my-api-key --type other --value secret123 --host api.example.com --path /api/v1 --header Authorization --headerTemplate "Bearer ${value}"
@@ -145,7 +159,10 @@ kdn secret create my-api-key --type other --value secret123 --host api.example.c
 		RunE:    c.run,
 	}
 
-	cmd.Flags().StringVar(&c.secretType, "type", "", "Type of secret (github, slack, or other)")
+	cmd.Flags().StringVar(&c.secretType, "type", "", fmt.Sprintf("Type of secret (%s)", typesStr))
+	cmd.RegisterFlagCompletionFunc("type", func(_ *cobra.Command, _ []string, _ string) ([]string, cobra.ShellCompDirective) {
+		return validTypes, cobra.ShellCompDirectiveNoFileComp
+	})
 	cmd.Flags().StringVar(&c.value, "value", "", "Secret value to store in the system keychain")
 	cmd.Flags().StringVar(&c.description, "description", "", "Optional human-readable description of the secret")
 	cmd.Flags().StringArrayVar(&c.hosts, "host", nil, "Host pattern (required for --type=other, can be specified multiple times)")

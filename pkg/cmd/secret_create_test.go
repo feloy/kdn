@@ -53,6 +53,9 @@ func buildPreRunCmd(storageDir string) *cobra.Command {
 	return cmd
 }
 
+// testValidTypes is a fixed list used by unit tests that construct secretCreateCmd directly.
+var testValidTypes = []string{"github", secret.TypeOther}
+
 func TestSecretCreateCmd(t *testing.T) {
 	t.Parallel()
 
@@ -78,7 +81,7 @@ func TestSecretCreateCmd_Examples(t *testing.T) {
 		t.Fatalf("failed to parse examples: %v", err)
 	}
 
-	expectedCount := 4
+	expectedCount := 3
 	if len(commands) != expectedCount {
 		t.Errorf("expected %d example commands, got %d", expectedCount, len(commands))
 	}
@@ -95,7 +98,7 @@ func TestSecretCreateCmd_PreRun(t *testing.T) {
 	t.Run("missing --type", func(t *testing.T) {
 		t.Parallel()
 
-		c := &secretCreateCmd{value: "v"}
+		c := &secretCreateCmd{value: "v", validTypes: testValidTypes}
 		cmd := buildPreRunCmd(t.TempDir())
 		err := c.preRun(cmd, []string{"name"})
 		if err == nil || !strings.Contains(err.Error(), "--type is required") {
@@ -106,7 +109,7 @@ func TestSecretCreateCmd_PreRun(t *testing.T) {
 	t.Run("invalid --type", func(t *testing.T) {
 		t.Parallel()
 
-		c := &secretCreateCmd{secretType: "custom", value: "v"}
+		c := &secretCreateCmd{secretType: "custom", value: "v", validTypes: testValidTypes}
 		cmd := buildPreRunCmd(t.TempDir())
 		err := c.preRun(cmd, []string{"name"})
 		if err == nil || !strings.Contains(err.Error(), "invalid --type") {
@@ -117,7 +120,7 @@ func TestSecretCreateCmd_PreRun(t *testing.T) {
 	t.Run("missing --value", func(t *testing.T) {
 		t.Parallel()
 
-		c := &secretCreateCmd{secretType: "github"}
+		c := &secretCreateCmd{secretType: "github", validTypes: testValidTypes}
 		cmd := buildPreRunCmd(t.TempDir())
 		err := c.preRun(cmd, []string{"name"})
 		if err == nil || !strings.Contains(err.Error(), "--value is required") {
@@ -128,7 +131,7 @@ func TestSecretCreateCmd_PreRun(t *testing.T) {
 	t.Run("github with --host rejected", func(t *testing.T) {
 		t.Parallel()
 
-		c := &secretCreateCmd{secretType: "github", value: "v", hosts: []string{"example.com"}}
+		c := &secretCreateCmd{secretType: "github", value: "v", hosts: []string{"example.com"}, validTypes: testValidTypes}
 		cmd := buildPreRunCmd(t.TempDir())
 		err := c.preRun(cmd, []string{"name"})
 		if err == nil || !strings.Contains(err.Error(), "--host is only valid when --type=other") {
@@ -139,7 +142,7 @@ func TestSecretCreateCmd_PreRun(t *testing.T) {
 	t.Run("github with --path rejected", func(t *testing.T) {
 		t.Parallel()
 
-		c := &secretCreateCmd{secretType: "github", value: "v"}
+		c := &secretCreateCmd{secretType: "github", value: "v", validTypes: testValidTypes}
 		cmd := buildPreRunCmd(t.TempDir())
 		if err := cmd.Flags().Set("path", "/api"); err != nil {
 			t.Fatal(err)
@@ -153,7 +156,7 @@ func TestSecretCreateCmd_PreRun(t *testing.T) {
 	t.Run("github with --header rejected", func(t *testing.T) {
 		t.Parallel()
 
-		c := &secretCreateCmd{secretType: "github", value: "v"}
+		c := &secretCreateCmd{secretType: "github", value: "v", validTypes: testValidTypes}
 		cmd := buildPreRunCmd(t.TempDir())
 		if err := cmd.Flags().Set("header", "Authorization"); err != nil {
 			t.Fatal(err)
@@ -167,7 +170,7 @@ func TestSecretCreateCmd_PreRun(t *testing.T) {
 	t.Run("github with --headerTemplate rejected", func(t *testing.T) {
 		t.Parallel()
 
-		c := &secretCreateCmd{secretType: "github", value: "v"}
+		c := &secretCreateCmd{secretType: "github", value: "v", validTypes: testValidTypes}
 		cmd := buildPreRunCmd(t.TempDir())
 		if err := cmd.Flags().Set("headerTemplate", "Bearer ${value}"); err != nil {
 			t.Fatal(err)
@@ -181,7 +184,7 @@ func TestSecretCreateCmd_PreRun(t *testing.T) {
 	t.Run("other without --host", func(t *testing.T) {
 		t.Parallel()
 
-		c := &secretCreateCmd{secretType: "other", value: "v"}
+		c := &secretCreateCmd{secretType: "other", value: "v", validTypes: testValidTypes}
 		cmd := buildPreRunCmd(t.TempDir())
 		err := c.preRun(cmd, []string{"name"})
 		if err == nil || !strings.Contains(err.Error(), "--host is required when --type=other") {
@@ -192,7 +195,7 @@ func TestSecretCreateCmd_PreRun(t *testing.T) {
 	t.Run("other without --path", func(t *testing.T) {
 		t.Parallel()
 
-		c := &secretCreateCmd{secretType: "other", value: "v", hosts: []string{"example.com"}}
+		c := &secretCreateCmd{secretType: "other", value: "v", hosts: []string{"example.com"}, validTypes: testValidTypes}
 		cmd := buildPreRunCmd(t.TempDir())
 		err := c.preRun(cmd, []string{"name"})
 		if err == nil || !strings.Contains(err.Error(), "--path is required when --type=other") {
@@ -203,7 +206,7 @@ func TestSecretCreateCmd_PreRun(t *testing.T) {
 	t.Run("other without --header", func(t *testing.T) {
 		t.Parallel()
 
-		c := &secretCreateCmd{secretType: "other", value: "v", hosts: []string{"example.com"}}
+		c := &secretCreateCmd{secretType: "other", value: "v", hosts: []string{"example.com"}, validTypes: testValidTypes}
 		cmd := buildPreRunCmd(t.TempDir())
 		if err := cmd.Flags().Set("path", "/"); err != nil {
 			t.Fatal(err)
@@ -217,7 +220,7 @@ func TestSecretCreateCmd_PreRun(t *testing.T) {
 	t.Run("other without --headerTemplate", func(t *testing.T) {
 		t.Parallel()
 
-		c := &secretCreateCmd{secretType: "other", value: "v", hosts: []string{"example.com"}}
+		c := &secretCreateCmd{secretType: "other", value: "v", hosts: []string{"example.com"}, validTypes: testValidTypes}
 		cmd := buildPreRunCmd(t.TempDir())
 		if err := cmd.Flags().Set("path", "/"); err != nil {
 			t.Fatal(err)
@@ -234,7 +237,7 @@ func TestSecretCreateCmd_PreRun(t *testing.T) {
 	t.Run("valid github params", func(t *testing.T) {
 		t.Parallel()
 
-		c := &secretCreateCmd{secretType: "github", value: "ghp_token"}
+		c := &secretCreateCmd{secretType: "github", value: "ghp_token", validTypes: testValidTypes}
 		cmd := buildPreRunCmd(t.TempDir())
 		if err := c.preRun(cmd, []string{"my-token"}); err != nil {
 			t.Errorf("unexpected error: %v", err)
@@ -261,6 +264,7 @@ func TestSecretCreateCmd_Run(t *testing.T) {
 			header:         "Authorization",
 			headerTemplate: "Bearer ${value}",
 			store:          fs,
+			validTypes:     testValidTypes,
 		}
 
 		root := &cobra.Command{}
@@ -294,7 +298,7 @@ func TestSecretCreateCmd_Run(t *testing.T) {
 		t.Parallel()
 
 		fs := &fakeStore{err: os.ErrPermission}
-		c := &secretCreateCmd{store: fs}
+		c := &secretCreateCmd{store: fs, validTypes: testValidTypes}
 
 		cmd := &cobra.Command{}
 		err := c.run(cmd, []string{"x"})

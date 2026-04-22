@@ -25,19 +25,6 @@ package secret
 // path, header, and headerTemplate descriptors.
 const TypeOther = "other"
 
-// SupportedTypes lists all accepted values for the --type flag.
-var SupportedTypes = []string{"github", "slack", TypeOther}
-
-// IsValidType reports whether t is an accepted secret type.
-func IsValidType(t string) bool {
-	for _, v := range SupportedTypes {
-		if t == v {
-			return true
-		}
-	}
-	return false
-}
-
 // CreateParams holds all parameters needed to create a secret.
 type CreateParams struct {
 	Name           string
