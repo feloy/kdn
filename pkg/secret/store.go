@@ -24,6 +24,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 
 	gokeyring "github.com/zalando/go-keyring"
 )
@@ -120,6 +121,7 @@ func (s *store) List() ([]ListItem, error) {
 			Description: rec.Description,
 		})
 	}
+	sort.Slice(items, func(i, j int) bool { return items[i].Name < items[j].Name })
 	return items, nil
 }
 

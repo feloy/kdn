@@ -35,6 +35,8 @@ type fakeListStore struct {
 	err   error
 }
 
+var _ secret.Store = (*fakeListStore)(nil)
+
 func (f *fakeListStore) Create(params secret.CreateParams) error { return nil }
 
 func (f *fakeListStore) List() ([]secret.ListItem, error) {
