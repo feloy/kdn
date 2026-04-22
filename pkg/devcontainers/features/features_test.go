@@ -94,6 +94,36 @@ func (m *fakeMetadata) ContainerEnv() map[string]string  { return nil }
 func (m *fakeMetadata) Options() features.FeatureOptions { return nil }
 func (m *fakeMetadata) InstallsAfter() []string          { return m.installsAfter }
 
+// --- FeatureMetadata tests ---
+
+func TestFeatureMetadata_InstallsAfter(t *testing.T) {
+	t.Parallel()
+
+	workspaceDir := t.TempDir()
+	makeLocalFeatureDir(t, workspaceDir, "my-feature", map[string]interface{}{
+		"installsAfter": []string{"ghcr.io/devcontainers/features/common-utils"},
+	})
+
+	meta := metadataFromLocalFeature(t, workspaceDir, "./my-feature")
+	got := meta.InstallsAfter()
+	if len(got) != 1 || got[0] != "ghcr.io/devcontainers/features/common-utils" {
+		t.Errorf("InstallsAfter() = %v, want [ghcr.io/devcontainers/features/common-utils]", got)
+	}
+}
+
+func TestFeatureMetadata_InstallsAfter_Empty(t *testing.T) {
+	t.Parallel()
+
+	workspaceDir := t.TempDir()
+	makeLocalFeatureDir(t, workspaceDir, "my-feature", map[string]interface{}{})
+
+	meta := metadataFromLocalFeature(t, workspaceDir, "./my-feature")
+	got := meta.InstallsAfter()
+	if len(got) != 0 {
+		t.Errorf("InstallsAfter() = %v, want []", got)
+	}
+}
+
 // --- FeatureOptions.Merge tests ---
 
 func TestFeatureOptions_Merge_DefaultsUsedWhenNoUserOpts(t *testing.T) {
@@ -242,6 +272,154 @@ func TestFeatureOptions_Merge_WrongTypeReturnsError(t *testing.T) {
 	}
 }
 
+func TestFeatureOptions_Merge_UnknownOptionReturnsError(t *testing.T) {
+	t.Parallel()
+
+	workspaceDir := t.TempDir()
+	makeLocalFeatureDir(t, workspaceDir, "my-feature", map[string]interface{}{
+		"options": map[string]interface{}{
+			"version": map[string]interface{}{"type": "string", "default": "latest"},
+		},
+	})
+
+	meta := metadataFromLocalFeature(t, workspaceDir, "./my-feature")
+	_, err := meta.Options().Merge(map[string]interface{}{
+		"unknown-key": "value",
+	})
+	if err == nil {
+		t.Error("expected error for unknown option, got nil")
+	}
+	if !strings.Contains(err.Error(), "unknown option") {
+		t.Errorf("error = %q, want to contain 'unknown option'", err.Error())
+	}
+}
+
+func TestFeatureOptions_Merge_BooleanUserOptionTrue(t *testing.T) {
+	t.Parallel()
+
+	workspaceDir := t.TempDir()
+	makeLocalFeatureDir(t, workspaceDir, "my-feature", map[string]interface{}{
+		"options": map[string]interface{}{
+			"install-tools": map[string]interface{}{"type": "boolean", "default": false},
+		},
+	})
+
+	meta := metadataFromLocalFeature(t, workspaceDir, "./my-feature")
+	result, err := meta.Options().Merge(map[string]interface{}{
+		"install-tools": true,
+	})
+	if err != nil {
+		t.Fatalf("Merge: %v", err)
+	}
+	if got := result["INSTALL_TOOLS"]; got != "true" {
+		t.Errorf("INSTALL_TOOLS = %q, want %q", got, "true")
+	}
+}
+
+func TestFeatureOptions_Merge_BooleanUserOptionFalse(t *testing.T) {
+	t.Parallel()
+
+	workspaceDir := t.TempDir()
+	makeLocalFeatureDir(t, workspaceDir, "my-feature", map[string]interface{}{
+		"options": map[string]interface{}{
+			"install-tools": map[string]interface{}{"type": "boolean", "default": true},
+		},
+	})
+
+	meta := metadataFromLocalFeature(t, workspaceDir, "./my-feature")
+	result, err := meta.Options().Merge(map[string]interface{}{
+		"install-tools": false,
+	})
+	if err != nil {
+		t.Fatalf("Merge: %v", err)
+	}
+	if got := result["INSTALL_TOOLS"]; got != "false" {
+		t.Errorf("INSTALL_TOOLS = %q, want %q", got, "false")
+	}
+}
+
+func TestFeatureOptions_Merge_BooleanStringValueAccepted(t *testing.T) {
+	t.Parallel()
+
+	workspaceDir := t.TempDir()
+	makeLocalFeatureDir(t, workspaceDir, "my-feature", map[string]interface{}{
+		"options": map[string]interface{}{
+			"install-tools": map[string]interface{}{"type": "boolean", "default": false},
+		},
+	})
+
+	meta := metadataFromLocalFeature(t, workspaceDir, "./my-feature")
+	result, err := meta.Options().Merge(map[string]interface{}{
+		"install-tools": "true",
+	})
+	if err != nil {
+		t.Fatalf("Merge: %v", err)
+	}
+	if got := result["INSTALL_TOOLS"]; got != "true" {
+		t.Errorf("INSTALL_TOOLS = %q, want %q", got, "true")
+	}
+}
+
+func TestFeatureOptions_Merge_BooleanInvalidStringReturnsError(t *testing.T) {
+	t.Parallel()
+
+	workspaceDir := t.TempDir()
+	makeLocalFeatureDir(t, workspaceDir, "my-feature", map[string]interface{}{
+		"options": map[string]interface{}{
+			"install-tools": map[string]interface{}{"type": "boolean", "default": false},
+		},
+	})
+
+	meta := metadataFromLocalFeature(t, workspaceDir, "./my-feature")
+	_, err := meta.Options().Merge(map[string]interface{}{
+		"install-tools": "yes",
+	})
+	if err == nil {
+		t.Error("expected error for invalid boolean string, got nil")
+	}
+}
+
+func TestFeatureOptions_Merge_BooleanWrongTypeReturnsError(t *testing.T) {
+	t.Parallel()
+
+	workspaceDir := t.TempDir()
+	makeLocalFeatureDir(t, workspaceDir, "my-feature", map[string]interface{}{
+		"options": map[string]interface{}{
+			"install-tools": map[string]interface{}{"type": "boolean", "default": false},
+		},
+	})
+
+	meta := metadataFromLocalFeature(t, workspaceDir, "./my-feature")
+	_, err := meta.Options().Merge(map[string]interface{}{
+		"install-tools": 42,
+	})
+	if err == nil {
+		t.Error("expected error for wrong type for boolean option, got nil")
+	}
+}
+
+func TestFeatureOptions_Merge_UnsupportedTypeReturnsError(t *testing.T) {
+	t.Parallel()
+
+	workspaceDir := t.TempDir()
+	makeLocalFeatureDir(t, workspaceDir, "my-feature", map[string]interface{}{
+		"options": map[string]interface{}{
+			"count": map[string]interface{}{"type": "integer", "default": 1},
+		},
+	})
+
+	meta := metadataFromLocalFeature(t, workspaceDir, "./my-feature")
+	_, err := meta.Options().Merge(map[string]interface{}{
+		"count": "3",
+	})
+	if err == nil {
+		t.Error("expected error for unsupported option type, got nil")
+	}
+	if !strings.Contains(err.Error(), "unsupported type") {
+		t.Errorf("error = %q, want to contain 'unsupported type'", err.Error())
+	}
+}
+
 // --- FromMap tests ---
 
 func TestFromMap_EmptyMap(t *testing.T) {
@@ -309,6 +487,35 @@ func TestFromMap_LocalRelativePath(t *testing.T) {
 	_, err = feats[0].Download(context.Background(), t.TempDir())
 	if err != nil {
 		t.Errorf("Download: %v", err)
+	}
+}
+
+func TestLocalFeature_Download_InvalidJSON(t *testing.T) {
+	t.Parallel()
+
+	workspaceDir := t.TempDir()
+	featureDir := filepath.Join(workspaceDir, "my-feature")
+	if err := os.MkdirAll(featureDir, 0755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(featureDir, "devcontainer-feature.json"), []byte("{not valid json"), 0644); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+
+	feats, _, err := features.FromMap(
+		map[string]map[string]interface{}{"./my-feature": nil},
+		workspaceDir,
+	)
+	if err != nil {
+		t.Fatalf("FromMap: %v", err)
+	}
+
+	_, err = feats[0].Download(context.Background(), t.TempDir())
+	if err == nil {
+		t.Error("expected error for invalid JSON, got nil")
+	}
+	if !strings.Contains(err.Error(), "parsing") {
+		t.Errorf("error = %q, want to contain 'parsing'", err.Error())
 	}
 }
 
