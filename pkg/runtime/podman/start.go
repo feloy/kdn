@@ -112,7 +112,7 @@ func (p *podmanRuntime) Start(ctx context.Context, id string) (runtime.RuntimeIn
 			}
 
 			stepLogger.Start("Configuring network rules", "Network rules configured")
-			if err := p.configureNetworking(ctx, podName, onecliBaseURL, hosts); err != nil {
+			if err := p.configureNetworking(ctx, onecliBaseURL, hosts); err != nil {
 				stepLogger.Fail(err)
 				return runtime.RuntimeInfo{}, fmt.Errorf("failed to configure networking: %w", err)
 			}
