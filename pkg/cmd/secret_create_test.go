@@ -245,6 +245,19 @@ func TestSecretCreateCmd_PreRun(t *testing.T) {
 			t.Error("expected store to be initialised")
 		}
 	})
+
+	t.Run("json output silences errors", func(t *testing.T) {
+		t.Parallel()
+
+		c := &secretCreateCmd{secretType: "github", value: "ghp_token", output: "json", validTypes: testValidTypes}
+		cmd := buildPreRunCmd(t.TempDir())
+		if err := c.preRun(cmd, []string{"my-token"}); err != nil {
+			t.Errorf("unexpected error: %v", err)
+		}
+		if !cmd.SilenceErrors {
+			t.Error("expected cmd.SilenceErrors to be true when output is json")
+		}
+	})
 }
 
 func TestSecretCreateCmd_Run(t *testing.T) {
@@ -339,6 +352,31 @@ func TestSecretCreateCmd_Run(t *testing.T) {
 			t.Errorf("expected secret name in JSON output, got: %s", output)
 		}
 	})
+}
+
+func TestSecretCreateCmd_TypeFlagCompletion(t *testing.T) {
+	t.Parallel()
+
+	cmd := NewSecretCreateCmd()
+	completionFunc, ok := cmd.GetFlagCompletionFunc("type")
+	if !ok {
+		t.Fatal("expected completion function registered for --type flag")
+	}
+
+	completions, directive := completionFunc(cmd, []string{}, "")
+	if directive != cobra.ShellCompDirectiveNoFileComp {
+		t.Errorf("expected ShellCompDirectiveNoFileComp, got %v", directive)
+	}
+	found := false
+	for _, c := range completions {
+		if c == "other" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Errorf("expected 'other' in completions, got %v", completions)
+	}
 }
 
 func TestSecretCreateCmd_PreRun_InvalidOutput(t *testing.T) {
