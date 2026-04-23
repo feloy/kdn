@@ -86,7 +86,7 @@ func TestSecretCreateCmd_Examples(t *testing.T) {
 		t.Fatalf("failed to parse examples: %v", err)
 	}
 
-	expectedCount := 2
+	expectedCount := 3
 	if len(commands) != expectedCount {
 		t.Errorf("expected %d example commands, got %d", expectedCount, len(commands))
 	}
@@ -197,45 +197,14 @@ func TestSecretCreateCmd_PreRun(t *testing.T) {
 		}
 	})
 
-	t.Run("other without --path", func(t *testing.T) {
-		t.Parallel()
-
-		c := &secretCreateCmd{secretType: "other", value: "v", hosts: []string{"example.com"}, validTypes: testValidTypes}
-		cmd := buildPreRunCmd(t.TempDir())
-		err := c.preRun(cmd, []string{"name"})
-		if err == nil || !strings.Contains(err.Error(), "--path is required when --type=other") {
-			t.Errorf("expected '--path is required' error, got: %v", err)
-		}
-	})
-
 	t.Run("other without --header", func(t *testing.T) {
 		t.Parallel()
 
 		c := &secretCreateCmd{secretType: "other", value: "v", hosts: []string{"example.com"}, validTypes: testValidTypes}
 		cmd := buildPreRunCmd(t.TempDir())
-		if err := cmd.Flags().Set("path", "/"); err != nil {
-			t.Fatal(err)
-		}
 		err := c.preRun(cmd, []string{"name"})
 		if err == nil || !strings.Contains(err.Error(), "--header is required when --type=other") {
 			t.Errorf("expected '--header is required' error, got: %v", err)
-		}
-	})
-
-	t.Run("other without --headerTemplate", func(t *testing.T) {
-		t.Parallel()
-
-		c := &secretCreateCmd{secretType: "other", value: "v", hosts: []string{"example.com"}, validTypes: testValidTypes}
-		cmd := buildPreRunCmd(t.TempDir())
-		if err := cmd.Flags().Set("path", "/"); err != nil {
-			t.Fatal(err)
-		}
-		if err := cmd.Flags().Set("header", "Authorization"); err != nil {
-			t.Fatal(err)
-		}
-		err := c.preRun(cmd, []string{"name"})
-		if err == nil || !strings.Contains(err.Error(), "--headerTemplate is required when --type=other") {
-			t.Errorf("expected '--headerTemplate is required' error, got: %v", err)
 		}
 	})
 
@@ -244,18 +213,25 @@ func TestSecretCreateCmd_PreRun(t *testing.T) {
 
 		c := &secretCreateCmd{secretType: "other", value: "v", hosts: []string{"example.com"}, validTypes: testValidTypes}
 		cmd := buildPreRunCmd(t.TempDir())
-		if err := cmd.Flags().Set("path", "/"); err != nil {
-			t.Fatal(err)
-		}
 		if err := cmd.Flags().Set("header", "Authorization"); err != nil {
-			t.Fatal(err)
-		}
-		if err := cmd.Flags().Set("headerTemplate", "Bearer ${value}"); err != nil {
 			t.Fatal(err)
 		}
 		err := c.preRun(cmd, []string{"name"})
 		if err == nil || !strings.Contains(err.Error(), "--env is required when --type=other") {
 			t.Errorf("expected '--env is required' error, got: %v", err)
+		}
+	})
+
+	t.Run("other without --path and --headerTemplate succeeds", func(t *testing.T) {
+		t.Parallel()
+
+		c := &secretCreateCmd{secretType: "other", value: "v", hosts: []string{"example.com"}, envs: []string{"MY_KEY"}, validTypes: testValidTypes}
+		cmd := buildPreRunCmd(t.TempDir())
+		if err := cmd.Flags().Set("header", "Authorization"); err != nil {
+			t.Fatal(err)
+		}
+		if err := c.preRun(cmd, []string{"name"}); err != nil {
+			t.Errorf("unexpected error: %v", err)
 		}
 	})
 

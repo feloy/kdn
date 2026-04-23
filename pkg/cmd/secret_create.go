@@ -63,18 +63,11 @@ func (s *secretCreateCmd) preRun(cmd *cobra.Command, args []string) error {
 	}
 
 	if s.secretType == secret.TypeOther {
-		// All descriptor flags are mandatory for type=other
 		if len(s.hosts) == 0 {
 			return fmt.Errorf("--host is required when --type=%s", secret.TypeOther)
 		}
-		if !cmd.Flags().Changed("path") {
-			return fmt.Errorf("--path is required when --type=%s", secret.TypeOther)
-		}
 		if !cmd.Flags().Changed("header") {
 			return fmt.Errorf("--header is required when --type=%s", secret.TypeOther)
-		}
-		if !cmd.Flags().Changed("headerTemplate") {
-			return fmt.Errorf("--headerTemplate is required when --type=%s", secret.TypeOther)
 		}
 		if len(s.envs) == 0 {
 			return fmt.Errorf("--env is required when --type=%s", secret.TypeOther)
@@ -152,13 +145,17 @@ hosts, path, header template, envs) is persisted in the kdn storage directory.
 
 Accepted types: %s.
 
-When --type=other, the flags --host, --path, --header, --headerTemplate, and
---env are all required. For any other type, these flags must not be specified.`, typesStr),
+When --type=other, the flags --host, --header, and --env are required; --path
+and --headerTemplate are optional. For any other type, these flags must not be
+specified.`, typesStr),
 		Example: `# Create a GitHub token secret
 kdn secret create my-github-token --type github --value ghp_mytoken
 
-# Create a custom secret (type=other) with all required descriptor flags
-kdn secret create my-api-key --type other --value secret123 --host api.example.com --host dev.example.com --path /api/v1 --header Authorization --headerTemplate "Bearer ${value}" --env MY_API_KEY --env API_KEY`,
+# Create a custom secret (type=other) with all descriptor flags
+kdn secret create my-api-key --type other --value secret123 --host api.example.com --host dev.example.com --path /api/v1 --header Authorization --headerTemplate "Bearer ${value}" --env MY_API_KEY --env API_KEY
+
+# Create a custom secret (type=other) without optional flags
+kdn secret create my-api-key --type other --value secret123 --host api.example.com --header Authorization --env MY_API_KEY`,
 		Args:    cobra.ExactArgs(1),
 		PreRunE: c.preRun,
 		RunE:    c.run,
@@ -171,9 +168,9 @@ kdn secret create my-api-key --type other --value secret123 --host api.example.c
 	cmd.Flags().StringVar(&c.value, "value", "", "Secret value to store in the system keychain")
 	cmd.Flags().StringVar(&c.description, "description", "", "Optional human-readable description of the secret")
 	cmd.Flags().StringArrayVar(&c.hosts, "host", nil, "Host pattern (required for --type=other, can be specified multiple times)")
-	cmd.Flags().StringVar(&c.path, "path", "", "URL path restriction (required for --type=other)")
+	cmd.Flags().StringVar(&c.path, "path", "", "URL path restriction (optional for --type=other)")
 	cmd.Flags().StringVar(&c.header, "header", "", "HTTP header name (required for --type=other)")
-	cmd.Flags().StringVar(&c.headerTemplate, "headerTemplate", "", "HTTP header value template using ${value} as placeholder (required for --type=other)")
+	cmd.Flags().StringVar(&c.headerTemplate, "headerTemplate", "", "HTTP header value template using ${value} as placeholder (optional for --type=other)")
 	cmd.Flags().StringArrayVar(&c.envs, "env", nil, "Environment variable name to expose the secret value (required for --type=other, can be specified multiple times)")
 
 	return cmd
