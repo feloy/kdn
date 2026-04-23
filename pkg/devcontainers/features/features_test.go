@@ -289,7 +289,7 @@ func TestFeatureOptions_Merge_UnknownOptionReturnsError(t *testing.T) {
 		"unknown-key": "value",
 	})
 	if err == nil {
-		t.Error("expected error for unknown option, got nil")
+		t.Fatal("expected error for unknown option, got nil")
 	}
 	if !strings.Contains(err.Error(), "unknown option") {
 		t.Errorf("error = %q, want to contain 'unknown option'", err.Error())
@@ -531,7 +531,7 @@ func TestFromMap_TgzURIReturnsError(t *testing.T) {
 		t.TempDir(),
 	)
 	if err == nil {
-		t.Error("expected error for Tgz URI, got nil")
+		t.Fatal("expected error for Tgz URI, got nil")
 	}
 	if !strings.Contains(err.Error(), "not supported") {
 		t.Errorf("error = %q, want to contain 'not supported'", err.Error())
@@ -641,7 +641,7 @@ func TestOrder_CycleDetectedReturnsError(t *testing.T) {
 
 	_, err := features.Order(feats, metadata)
 	if err == nil {
-		t.Error("expected error for cycle, got nil")
+		t.Fatal("expected error for cycle, got nil")
 	}
 	if !strings.Contains(err.Error(), "cycle") {
 		t.Errorf("error = %q, want to contain 'cycle'", err.Error())
@@ -677,7 +677,9 @@ func TestOCIFeature_Download(t *testing.T) {
 	tw := tar.NewWriter(&tarBuf)
 	addTarFile(t, tw, "devcontainer-feature.json", featureJSONBytes)
 	addTarFile(t, tw, "install.sh", []byte("#!/bin/sh\necho hello"))
-	tw.Close()
+	if err := tw.Close(); err != nil {
+		t.Fatalf("closing plain tar writer: %v", err)
+	}
 	plainTarBytes := tarBuf.Bytes()
 
 	// Gzip tar layer containing extra.txt.
@@ -685,8 +687,12 @@ func TestOCIFeature_Download(t *testing.T) {
 	gw := gzip.NewWriter(&gzBuf)
 	tw2 := tar.NewWriter(gw)
 	addTarFile(t, tw2, "extra.txt", []byte("extra"))
-	tw2.Close()
-	gw.Close()
+	if err := tw2.Close(); err != nil {
+		t.Fatalf("closing gzip tar writer: %v", err)
+	}
+	if err := gw.Close(); err != nil {
+		t.Fatalf("closing gzip writer: %v", err)
+	}
 	gzipTarBytes := gzBuf.Bytes()
 
 	h1 := sha256.Sum256(plainTarBytes)
@@ -712,7 +718,7 @@ func TestOCIFeature_Download(t *testing.T) {
 		switch {
 		case strings.Contains(r.URL.Path, "/manifests/"):
 			w.Header().Set("Content-Type", "application/vnd.oci.image.manifest.v1+json")
-			w.Write(manifestBytes)
+			_, _ = w.Write(manifestBytes)
 		case strings.Contains(r.URL.Path, "/blobs/"):
 			parts := strings.SplitAfter(r.URL.Path, "/blobs/")
 			digest := parts[len(parts)-1]
@@ -721,7 +727,7 @@ func TestOCIFeature_Download(t *testing.T) {
 				http.NotFound(w, r)
 				return
 			}
-			w.Write(data)
+			_, _ = w.Write(data)
 		default:
 			http.NotFound(w, r)
 		}

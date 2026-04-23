@@ -45,7 +45,7 @@ func TestLocalFeature_Download_SrcDirNotFound(t *testing.T) {
 
 	_, err = feats[0].Download(context.Background(), t.TempDir())
 	if err == nil {
-		t.Error("expected error for non-existent source directory, got nil")
+		t.Fatal("expected error for non-existent source directory, got nil")
 	}
 	if !strings.Contains(err.Error(), "copying feature from") {
 		t.Errorf("error = %q, want to contain 'copying feature from'", err.Error())
@@ -90,7 +90,11 @@ func TestLocalFeature_CopyDir_Symlink(t *testing.T) {
 	}
 	writeFeatureJSON(t, featureDir, map[string]interface{}{})
 
-	if err := os.Symlink("/etc/hosts", filepath.Join(featureDir, "z-link")); err != nil {
+	targetFile := filepath.Join(workspaceDir, "symlink-target")
+	if err := os.WriteFile(targetFile, []byte("target"), 0644); err != nil {
+		t.Fatalf("WriteFile target: %v", err)
+	}
+	if err := os.Symlink(targetFile, filepath.Join(featureDir, "z-link")); err != nil {
 		t.Skipf("cannot create symlink: %v", err)
 	}
 
@@ -104,7 +108,7 @@ func TestLocalFeature_CopyDir_Symlink(t *testing.T) {
 
 	_, err = feats[0].Download(context.Background(), t.TempDir())
 	if err == nil {
-		t.Error("expected error for symlink in feature dir, got nil")
+		t.Fatal("expected error for symlink in feature dir, got nil")
 	}
 	if !strings.Contains(err.Error(), "symlinks") {
 		t.Errorf("error = %q, want to contain 'symlinks'", err.Error())

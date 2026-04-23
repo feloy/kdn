@@ -283,7 +283,7 @@ func (f *ociFeature) downloadAndExtractLayer(ctx context.Context, registry, repo
 		return err
 	}
 	tmpPath := tmp.Name()
-	defer os.Remove(tmpPath)
+	defer func() { _ = os.Remove(tmpPath) }()
 
 	h := sha256.New()
 	if _, err := io.Copy(tmp, io.TeeReader(resp.Body, h)); err != nil {

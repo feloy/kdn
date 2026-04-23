@@ -83,18 +83,26 @@ func copyDir(src, dst string) error {
 	})
 }
 
-func copyFile(src, dst string) error {
+func copyFile(src, dst string) (retErr error) {
 	in, err := os.Open(src)
 	if err != nil {
 		return err
 	}
-	defer in.Close()
+	defer func() {
+		if err := in.Close(); err != nil && retErr == nil {
+			retErr = fmt.Errorf("closing source file: %w", err)
+		}
+	}()
 
 	out, err := os.OpenFile(dst, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
 	if err != nil {
 		return err
 	}
-	defer out.Close()
+	defer func() {
+		if err := out.Close(); err != nil && retErr == nil {
+			retErr = fmt.Errorf("closing destination file: %w", err)
+		}
+	}()
 
 	_, err = io.Copy(out, in)
 	return err

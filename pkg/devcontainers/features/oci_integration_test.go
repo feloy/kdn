@@ -26,6 +26,7 @@ import (
 	"path/filepath"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/openkaiden/kdn/pkg/devcontainers/features"
 )
@@ -50,8 +51,11 @@ func TestIntegration_OCIFeature_DownloadNode(t *testing.T) {
 		t.Fatalf("expected 1 feature, got %d", len(feats))
 	}
 
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	defer cancel()
+
 	destDir := t.TempDir()
-	meta, err := feats[0].Download(context.Background(), destDir)
+	meta, err := feats[0].Download(ctx, destDir)
 	if err != nil {
 		t.Fatalf("Download(%q): %v", nodeFeatureID, err)
 	}
@@ -96,7 +100,10 @@ func TestIntegration_OCIFeature_MergeUserOptions(t *testing.T) {
 		t.Fatalf("FromMap: %v", err)
 	}
 
-	meta, err := feats[0].Download(context.Background(), t.TempDir())
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	defer cancel()
+
+	meta, err := feats[0].Download(ctx, t.TempDir())
 	if err != nil {
 		t.Fatalf("Download: %v", err)
 	}
@@ -124,7 +131,10 @@ func TestIntegration_OCIFeature_InvalidOptionRejected(t *testing.T) {
 		t.Fatalf("FromMap: %v", err)
 	}
 
-	meta, err := feats[0].Download(context.Background(), t.TempDir())
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	defer cancel()
+
+	meta, err := feats[0].Download(ctx, t.TempDir())
 	if err != nil {
 		t.Fatalf("Download: %v", err)
 	}
@@ -177,12 +187,15 @@ func TestIntegration_OCIFeature_OrderAWSCLIAfterCommonUtils(t *testing.T) {
 		err  error
 	}
 	results := make([]downloadResult, len(feats))
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	defer cancel()
+
 	var wg sync.WaitGroup
 	for i, feat := range feats {
 		wg.Add(1)
 		go func(i int, feat features.Feature) {
 			defer wg.Done()
-			meta, err := feat.Download(context.Background(), t.TempDir())
+			meta, err := feat.Download(ctx, t.TempDir())
 			results[i] = downloadResult{id: feat.ID(), meta: meta, err: err}
 		}(i, feat)
 	}

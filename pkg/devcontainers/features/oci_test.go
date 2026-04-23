@@ -188,7 +188,7 @@ func TestFetchBearerToken_SuccessTokenField(t *testing.T) {
 
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		fmt.Fprint(w, `{"token":"mytoken123"}`)
+		_, _ = fmt.Fprint(w, `{"token":"mytoken123"}`)
 	}))
 	defer srv.Close()
 
@@ -208,7 +208,7 @@ func TestFetchBearerToken_SuccessAccessTokenField(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		// "access_token" field instead of "token"
-		fmt.Fprint(w, `{"access_token":"accesstok456"}`)
+		_, _ = fmt.Fprint(w, `{"access_token":"accesstok456"}`)
 	}))
 	defer srv.Close()
 
@@ -256,7 +256,7 @@ func TestFetchBearerToken_TokenEndpointBadJSON(t *testing.T) {
 	t.Parallel()
 
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprint(w, "not valid json")
+		_, _ = fmt.Fprint(w, "not valid json")
 	}))
 	defer srv.Close()
 
@@ -271,7 +271,7 @@ func TestFetchBearerToken_NetworkError(t *testing.T) {
 	t.Parallel()
 
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		w.Write([]byte("{}"))
+		_, _ = w.Write([]byte("{}"))
 	}))
 	defer srv.Close()
 
@@ -296,7 +296,7 @@ func TestFetchManifest_NoAuth(t *testing.T) {
 	manifest := `{"layers":[{"digest":"sha256:aaa"},{"digest":"sha256:bbb"}]}`
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/vnd.oci.image.manifest.v1+json")
-		fmt.Fprint(w, manifest)
+		_, _ = fmt.Fprint(w, manifest)
 	}))
 	defer srv.Close()
 
@@ -338,9 +338,9 @@ func TestFetchManifest_WithBearerAuth(t *testing.T) {
 				return
 			}
 			w.Header().Set("Content-Type", "application/vnd.oci.image.manifest.v1+json")
-			fmt.Fprint(w, manifest)
+			_, _ = fmt.Fprint(w, manifest)
 		case r.URL.Path == "/token":
-			fmt.Fprint(w, `{"token":"tok123"}`)
+			_, _ = fmt.Fprint(w, `{"token":"tok123"}`)
 		}
 	}))
 	defer srv.Close()
@@ -385,7 +385,7 @@ func TestFetchManifest_BadJSON(t *testing.T) {
 
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/vnd.oci.image.manifest.v1+json")
-		fmt.Fprint(w, "not json at all")
+		_, _ = fmt.Fprint(w, "not json at all")
 	}))
 	defer srv.Close()
 
@@ -476,7 +476,9 @@ func TestDownloadAndExtractLayer_WithToken(t *testing.T) {
 	content := []byte("hello")
 	_ = tw.WriteHeader(&tar.Header{Name: "hello.txt", Mode: 0644, Size: int64(len(content))})
 	_, _ = tw.Write(content)
-	tw.Close()
+	if err := tw.Close(); err != nil {
+		t.Fatalf("closing tar writer: %v", err)
+	}
 
 	tarBytes := tarBuf.Bytes()
 	h := sha256.Sum256(tarBytes)
@@ -485,7 +487,7 @@ func TestDownloadAndExtractLayer_WithToken(t *testing.T) {
 	var gotAuth string
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		gotAuth = r.Header.Get("Authorization")
-		w.Write(tarBytes)
+		_, _ = w.Write(tarBytes)
 	}))
 	defer srv.Close()
 
@@ -526,7 +528,9 @@ func TestExtractTar_PlainTar(t *testing.T) {
 	content := []byte("plain tar content")
 	_ = tw.WriteHeader(&tar.Header{Name: "plain.txt", Mode: 0644, Size: int64(len(content))})
 	_, _ = tw.Write(content)
-	tw.Close()
+	if err := tw.Close(); err != nil {
+		t.Fatalf("closing tar writer: %v", err)
+	}
 
 	destDir := t.TempDir()
 	if err := extractTar(&buf, destDir); err != nil {
@@ -550,8 +554,12 @@ func TestExtractTar_GzipTar(t *testing.T) {
 	content := []byte("gzip tar content")
 	_ = tw.WriteHeader(&tar.Header{Name: "gzip.txt", Mode: 0644, Size: int64(len(content))})
 	_, _ = tw.Write(content)
-	tw.Close()
-	gw.Close()
+	if err := tw.Close(); err != nil {
+		t.Fatalf("closing tar writer: %v", err)
+	}
+	if err := gw.Close(); err != nil {
+		t.Fatalf("closing gzip writer: %v", err)
+	}
 
 	destDir := t.TempDir()
 	if err := extractTar(&buf, destDir); err != nil {
@@ -573,7 +581,7 @@ func TestExtractTar_InvalidGzip(t *testing.T) {
 	data := []byte{0x1f, 0x8b, 0x00}
 	err := extractTar(bytes.NewReader(data), t.TempDir())
 	if err == nil {
-		t.Error("expected error for invalid gzip, got nil")
+		t.Fatal("expected error for invalid gzip, got nil")
 	}
 	if !strings.Contains(err.Error(), "creating gzip reader") {
 		t.Errorf("error = %q, want to contain 'creating gzip reader'", err.Error())
@@ -588,7 +596,9 @@ func TestExtractTarEntries_DirectoryEntry(t *testing.T) {
 	var buf bytes.Buffer
 	tw := tar.NewWriter(&buf)
 	_ = tw.WriteHeader(&tar.Header{Typeflag: tar.TypeDir, Name: "mydir/", Mode: 0755})
-	tw.Close()
+	if err := tw.Close(); err != nil {
+		t.Fatalf("closing tar writer: %v", err)
+	}
 
 	destDir := t.TempDir()
 	if err := extractTarEntries(tar.NewReader(&buf), destDir); err != nil {
@@ -613,7 +623,9 @@ func TestExtractTarEntries_SymlinkEntryRejected(t *testing.T) {
 		Name:     "link.txt",
 		Linkname: "target.txt",
 	})
-	tw.Close()
+	if err := tw.Close(); err != nil {
+		t.Fatalf("closing tar writer: %v", err)
+	}
 
 	destDir := t.TempDir()
 	if err := extractTarEntries(tar.NewReader(&buf), destDir); err == nil {
@@ -630,7 +642,9 @@ func TestExtractTarEntries_PathTraversalRejected(t *testing.T) {
 	// Use a path that after filepath.Clean resolves to something starting with ".."
 	_ = tw.WriteHeader(&tar.Header{Name: "../evil.txt", Mode: 0644, Size: int64(len(content))})
 	_, _ = tw.Write(content)
-	tw.Close()
+	if err := tw.Close(); err != nil {
+		t.Fatalf("closing tar writer: %v", err)
+	}
 
 	err := extractTarEntries(tar.NewReader(&buf), t.TempDir())
 	if err == nil {
@@ -682,7 +696,7 @@ func TestOCIFeatureDownload_LayerExtractError(t *testing.T) {
 		switch {
 		case strings.Contains(r.URL.Path, "/manifests/"):
 			w.Header().Set("Content-Type", "application/vnd.oci.image.manifest.v1+json")
-			fmt.Fprint(w, manifest)
+			_, _ = fmt.Fprint(w, manifest)
 		case strings.Contains(r.URL.Path, "/blobs/"):
 			http.Error(w, "blob gone", http.StatusGone)
 		}
@@ -710,7 +724,9 @@ func TestOCIFeatureDownload_MissingFeatureJSON(t *testing.T) {
 	body := []byte("just a script")
 	_ = tw.WriteHeader(&tar.Header{Name: "install.sh", Mode: 0755, Size: int64(len(body))})
 	_, _ = tw.Write(body)
-	tw.Close()
+	if err := tw.Close(); err != nil {
+		t.Fatalf("closing tar writer: %v", err)
+	}
 	tarBytes := tarBuf.Bytes()
 
 	h := sha256.Sum256(tarBytes)
@@ -724,9 +740,9 @@ func TestOCIFeatureDownload_MissingFeatureJSON(t *testing.T) {
 		switch {
 		case strings.Contains(r.URL.Path, "/manifests/"):
 			w.Header().Set("Content-Type", "application/vnd.oci.image.manifest.v1+json")
-			w.Write(manifest)
+			_, _ = w.Write(manifest)
 		case strings.Contains(r.URL.Path, "/blobs/"):
-			w.Write(tarBytes)
+			_, _ = w.Write(tarBytes)
 		}
 	}))
 	defer srv.Close()

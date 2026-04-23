@@ -131,7 +131,7 @@ func TestLocalFeature_CopyDir_NonRegularFile(t *testing.T) {
 
 	_, err = feats[0].Download(context.Background(), t.TempDir())
 	if err == nil {
-		t.Error("expected error for non-regular file in feature dir, got nil")
+		t.Fatal("expected error for non-regular file in feature dir, got nil")
 	}
 	if !strings.Contains(err.Error(), "unsupported non-regular file") {
 		t.Errorf("error = %q, want to contain 'unsupported non-regular file'", err.Error())
