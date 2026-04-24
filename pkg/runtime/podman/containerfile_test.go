@@ -407,12 +407,12 @@ func TestGenerateContainerfile_WithFeatures(t *testing.T) {
 			t.Error("Expected RUN install.sh without options")
 		}
 
-		// Features run before user setup — no USER switches needed
+		// No USER root switch — features still run as root but after user creation.
 		if strings.Contains(result, "USER root") {
-			t.Error("Expected no 'USER root' instruction: features run before user creation")
+			t.Error("Expected no 'USER root' instruction")
 		}
 
-		// Feature section appears before the USER agent:agent line
+		// Feature COPY appears before USER agent:agent (features run as root).
 		featureCopyPos := strings.Index(result, "COPY features/feature-0/")
 		userAgentPos := strings.Index(result, "USER agent:agent")
 		if featureCopyPos == -1 || userAgentPos == -1 {
@@ -420,6 +420,16 @@ func TestGenerateContainerfile_WithFeatures(t *testing.T) {
 		}
 		if featureCopyPos > userAgentPos {
 			t.Error("Expected feature COPY to appear before 'USER agent:agent'")
+		}
+
+		// User must be created before features so install scripts can reference the account.
+		useradd := "useradd"
+		useraddPos := strings.Index(result, useradd)
+		if useraddPos == -1 {
+			t.Fatal("Expected useradd instruction")
+		}
+		if useraddPos > featureCopyPos {
+			t.Error("Expected useradd to appear before feature COPY")
 		}
 	})
 
@@ -516,6 +526,48 @@ func TestGenerateContainerfile_WithFeatures(t *testing.T) {
 		}
 		if strings.Contains(result, "/tmp/feature-install/") {
 			t.Errorf("Expected no feature install paths\nGot:\n%s", result)
+		}
+	})
+
+	t.Run("_REMOTE_USER and _REMOTE_USER_HOME are set before feature installation", func(t *testing.T) {
+		t.Parallel()
+
+		infos := []featureInstallInfo{
+			{dirName: "feature-0", options: nil, envVars: nil},
+		}
+
+		result := generateContainerfile(imageConfig, agentConfig, false, infos)
+
+		if !strings.Contains(result, `ENV _REMOTE_USER="agent"`) {
+			t.Errorf("Expected ENV _REMOTE_USER=\"agent\"\nGot:\n%s", result)
+		}
+		if !strings.Contains(result, `ENV _REMOTE_USER_HOME="/home/agent"`) {
+			t.Errorf("Expected ENV _REMOTE_USER_HOME=\"/home/agent\"\nGot:\n%s", result)
+		}
+
+		// Both vars must appear before the feature COPY instruction.
+		remoteUserPos := strings.Index(result, `ENV _REMOTE_USER="agent"`)
+		remoteUserHomePos := strings.Index(result, `ENV _REMOTE_USER_HOME="/home/agent"`)
+		featureCopyPos := strings.Index(result, "COPY features/feature-0/")
+
+		if remoteUserPos == -1 || remoteUserHomePos == -1 || featureCopyPos == -1 {
+			t.Fatal("Expected _REMOTE_USER, _REMOTE_USER_HOME, and feature COPY to be present")
+		}
+		if remoteUserPos > featureCopyPos {
+			t.Error("Expected _REMOTE_USER to appear before feature COPY")
+		}
+		if remoteUserHomePos > featureCopyPos {
+			t.Error("Expected _REMOTE_USER_HOME to appear before feature COPY")
+		}
+	})
+
+	t.Run("_REMOTE_USER and _REMOTE_USER_HOME are not set when no features", func(t *testing.T) {
+		t.Parallel()
+
+		result := generateContainerfile(imageConfig, agentConfig, false, nil)
+
+		if strings.Contains(result, "_REMOTE_USER") {
+			t.Errorf("Expected no _REMOTE_USER when no features\nGot:\n%s", result)
 		}
 	})
 

@@ -289,20 +289,28 @@ type featureInstallInfo struct {
 
 ### Containerfile layout
 
-Feature instructions appear **immediately after `FROM`**, before `RUN dnf install -y` — while the image is still root. No `USER` switches are needed.
+Feature instructions are placed **after user creation** (`useradd -m agent`) but **before `USER agent:agent`**. Features still run as root so they can install system-wide tools, but `/home/agent` and the `agent` account already exist — allowing install scripts to `chown` files, write dotfiles, and `su` to the target user. `_REMOTE_USER` and `_REMOTE_USER_HOME` are exported as `ENV` immediately before the feature block so scripts can resolve the target user by name.
 
 ```dockerfile
 FROM registry.fedoraproject.org/fedora:latest
+
+ARG UID=1000
+ARG GID=1000
+
+RUN dnf install -y …
+
+RUN … groupadd … && useradd -m agent
+COPY sudoers …
+RUN chmod 0440 …
+
+ENV _REMOTE_USER="agent"
+ENV _REMOTE_USER_HOME="/home/agent"
 
 COPY features/feature-0/ /tmp/feature-install/feature-0/
 RUN chmod +x /tmp/feature-install/feature-0/install.sh && VERSION="1.21" /tmp/feature-install/feature-0/install.sh
 ENV GOROOT="/usr/local/go"
 ENV GOPATH="/home/agent/go"
 
-RUN dnf install -y …
-
-ARG UID=1000
-…
 USER agent:agent
 …
 ```
