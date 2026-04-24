@@ -108,13 +108,13 @@ apiKey, err := provider.APIKey(ctx)
 
 ```go
 mapper := onecli.NewSecretMapper(secretServiceRegistry)
-input, err := mapper.Map(secret)
+inputs, err := mapper.Map(secret)  // returns []CreateSecretInput
 ```
 
 ### Mapping rules
 
-- **Known type** (e.g. `github`): looks up the `SecretService` in the registry; uses its `HostPattern()`, `Path()`, `HeaderName()`, and `HeaderTemplate()` fields. The secret's `Name` field overrides the type name if set.
-- **`other` type**: uses the secret's own `Hosts`, `Path`, `Header`, `HeaderTemplate` fields. Only one host is allowed — split multi-host secrets into separate entries.
+- **Known type** (e.g. `github`): looks up the `SecretService` in the registry; uses its `HostPattern()`, `Path()`, `HeaderName()`, and `HeaderTemplate()` fields. Returns a single-element slice.
+- **`other` type**: uses the secret's own `Hosts`, `Path`, `Header`, `HeaderTemplate` fields. When multiple hosts are provided, one `CreateSecretInput` is returned per host with the name `<secret-name>-<sanitized-host>`; a single or empty `Hosts` returns a single element using `item.Name` unchanged.
 - Template conversion: kdn uses `${value}`, OneCLI uses `{value}` — the mapper converts automatically.
 - `HostPattern` is always `"*"` when `Hosts` is nil or empty.
 
@@ -155,9 +155,8 @@ The instances manager converts workspace-level secrets before calling the runtim
 ```go
 mapper := onecli.NewSecretMapper(secretServiceRegistry)
 for _, s := range workspaceConfig.Secrets {
-    input, err := mapper.Map(s)
-    // collect input.InjectionConfig env vars for the workspace environment
-    // pass inputs to runtime.CreateParams.OnecliSecrets
+    inputs, err := mapper.Map(s)  // []CreateSecretInput — one per host for type=other
+    // collect env vars, then append inputs... to runtime.CreateParams.OnecliSecrets
 }
 ```
 

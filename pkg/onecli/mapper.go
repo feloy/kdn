@@ -20,6 +20,7 @@ package onecli
 
 import (
 	"fmt"
+	"regexp"
 	"strings"
 
 	"github.com/openkaiden/kdn/pkg/secret"
@@ -30,7 +31,7 @@ const secretTypeOther = "other"
 
 // SecretMapper converts stored secrets to OneCLI CreateSecretInput values.
 type SecretMapper interface {
-	Map(item secret.ListItem, value string) (CreateSecretInput, error)
+	Map(item secret.ListItem, value string) ([]CreateSecretInput, error)
 }
 
 type secretMapper struct {
@@ -45,20 +46,20 @@ func NewSecretMapper(registry secretservice.Registry) SecretMapper {
 	return &secretMapper{registry: registry}
 }
 
-// Map converts a stored secret item and its value to a CreateSecretInput.
-// For type "other", the item's own fields are used directly.
+// Map converts a stored secret item and its value to a slice of CreateSecretInputs.
+// For type "other" with multiple hosts, one input is returned per host.
 // For all other types, the SecretService registry provides host pattern, header, and template.
-func (m *secretMapper) Map(item secret.ListItem, value string) (CreateSecretInput, error) {
+func (m *secretMapper) Map(item secret.ListItem, value string) ([]CreateSecretInput, error) {
 	if item.Type == secretTypeOther {
 		return m.mapOtherSecret(item, value)
 	}
 	return m.mapKnownSecret(item, value)
 }
 
-func (m *secretMapper) mapKnownSecret(item secret.ListItem, value string) (CreateSecretInput, error) {
+func (m *secretMapper) mapKnownSecret(item secret.ListItem, value string) ([]CreateSecretInput, error) {
 	svc, err := m.registry.Get(item.Type)
 	if err != nil {
-		return CreateSecretInput{}, fmt.Errorf("unknown secret type %q: %w", item.Type, err)
+		return nil, fmt.Errorf("unknown secret type %q: %w", item.Type, err)
 	}
 
 	input := CreateSecretInput{
@@ -76,35 +77,58 @@ func (m *secretMapper) mapKnownSecret(item secret.ListItem, value string) (Creat
 		}
 	}
 
-	return input, nil
+	return []CreateSecretInput{input}, nil
 }
 
-func (m *secretMapper) mapOtherSecret(item secret.ListItem, value string) (CreateSecretInput, error) {
-	if len(item.Hosts) > 1 {
-		return CreateSecretInput{}, fmt.Errorf("secret type %q supports only one host per secret; declare one secret per host (got %d hosts)", secretTypeOther, len(item.Hosts))
-	}
-
-	hostPattern := "*"
-	if len(item.Hosts) > 0 {
-		hostPattern = item.Hosts[0]
-	}
-
-	input := CreateSecretInput{
-		Name:        item.Name,
-		Type:        "generic",
-		Value:       value,
-		HostPattern: hostPattern,
-		PathPattern: item.Path,
-	}
-
-	if item.Header != "" {
-		input.InjectionConfig = &InjectionConfig{
-			HeaderName:  item.Header,
-			ValueFormat: convertTemplate(item.HeaderTemplate),
+func (m *secretMapper) mapOtherSecret(item secret.ListItem, value string) ([]CreateSecretInput, error) {
+	if len(item.Hosts) <= 1 {
+		hostPattern := "*"
+		if len(item.Hosts) == 1 {
+			hostPattern = item.Hosts[0]
 		}
+		input := CreateSecretInput{
+			Name:        item.Name,
+			Type:        "generic",
+			Value:       value,
+			HostPattern: hostPattern,
+			PathPattern: item.Path,
+		}
+		if item.Header != "" {
+			input.InjectionConfig = &InjectionConfig{
+				HeaderName:  item.Header,
+				ValueFormat: convertTemplate(item.HeaderTemplate),
+			}
+		}
+		return []CreateSecretInput{input}, nil
 	}
 
-	return input, nil
+	inputs := make([]CreateSecretInput, 0, len(item.Hosts))
+	for _, host := range item.Hosts {
+		input := CreateSecretInput{
+			Name:        item.Name + "-" + sanitizeName(host),
+			Type:        "generic",
+			Value:       value,
+			HostPattern: host,
+			PathPattern: item.Path,
+		}
+		if item.Header != "" {
+			input.InjectionConfig = &InjectionConfig{
+				HeaderName:  item.Header,
+				ValueFormat: convertTemplate(item.HeaderTemplate),
+			}
+		}
+		inputs = append(inputs, input)
+	}
+	return inputs, nil
+}
+
+var nonAlphanumRun = regexp.MustCompile(`[^a-zA-Z0-9]+`)
+
+// sanitizeName converts an arbitrary string to a DNS-safe name segment by
+// replacing runs of non-alphanumeric characters with a single hyphen and
+// trimming leading/trailing hyphens.
+func sanitizeName(s string) string {
+	return strings.Trim(nonAlphanumRun.ReplaceAllString(s, "-"), "-")
 }
 
 // convertTemplate converts kdn's ${value} placeholder to OneCLI's {value} format.

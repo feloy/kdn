@@ -19,7 +19,6 @@
 package onecli
 
 import (
-	"strings"
 	"testing"
 
 	"github.com/openkaiden/kdn/pkg/secret"
@@ -56,27 +55,30 @@ func TestMapper_KnownType_GitHub(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Map() error: %v", err)
 	}
+	if len(got) != 1 {
+		t.Fatalf("Map() returned %d inputs, want 1", len(got))
+	}
 
-	if got.Name != "my-gh-token" {
-		t.Errorf("Name = %q, want %q", got.Name, "my-gh-token")
+	if got[0].Name != "my-gh-token" {
+		t.Errorf("Name = %q, want %q", got[0].Name, "my-gh-token")
 	}
-	if got.Type != "generic" {
-		t.Errorf("Type = %q, want %q", got.Type, "generic")
+	if got[0].Type != "generic" {
+		t.Errorf("Type = %q, want %q", got[0].Type, "generic")
 	}
-	if got.Value != "ghp_abc123" {
-		t.Errorf("Value = %q, want %q", got.Value, "ghp_abc123")
+	if got[0].Value != "ghp_abc123" {
+		t.Errorf("Value = %q, want %q", got[0].Value, "ghp_abc123")
 	}
-	if got.HostPattern != "api.github.com" {
-		t.Errorf("HostPattern = %q, want %q", got.HostPattern, "api.github.com")
+	if got[0].HostPattern != "api.github.com" {
+		t.Errorf("HostPattern = %q, want %q", got[0].HostPattern, "api.github.com")
 	}
-	if got.InjectionConfig == nil {
+	if got[0].InjectionConfig == nil {
 		t.Fatal("InjectionConfig is nil")
 	}
-	if got.InjectionConfig.HeaderName != "Authorization" {
-		t.Errorf("HeaderName = %q, want %q", got.InjectionConfig.HeaderName, "Authorization")
+	if got[0].InjectionConfig.HeaderName != "Authorization" {
+		t.Errorf("HeaderName = %q, want %q", got[0].InjectionConfig.HeaderName, "Authorization")
 	}
-	if got.InjectionConfig.ValueFormat != "Bearer {value}" {
-		t.Errorf("ValueFormat = %q, want %q", got.InjectionConfig.ValueFormat, "Bearer {value}")
+	if got[0].InjectionConfig.ValueFormat != "Bearer {value}" {
+		t.Errorf("ValueFormat = %q, want %q", got[0].InjectionConfig.ValueFormat, "Bearer {value}")
 	}
 }
 
@@ -112,34 +114,37 @@ func TestMapper_OtherType_AllFields(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Map() error: %v", err)
 	}
+	if len(got) != 1 {
+		t.Fatalf("Map() returned %d inputs, want 1", len(got))
+	}
 
-	if got.Name != "custom-api" {
-		t.Errorf("Name = %q, want %q", got.Name, "custom-api")
+	if got[0].Name != "custom-api" {
+		t.Errorf("Name = %q, want %q", got[0].Name, "custom-api")
 	}
-	if got.Type != "generic" {
-		t.Errorf("Type = %q, want %q", got.Type, "generic")
+	if got[0].Type != "generic" {
+		t.Errorf("Type = %q, want %q", got[0].Type, "generic")
 	}
-	if got.Value != "my-key-123" {
-		t.Errorf("Value = %q, want %q", got.Value, "my-key-123")
+	if got[0].Value != "my-key-123" {
+		t.Errorf("Value = %q, want %q", got[0].Value, "my-key-123")
 	}
-	if got.HostPattern != "api.example.com" {
-		t.Errorf("HostPattern = %q, want %q", got.HostPattern, "api.example.com")
+	if got[0].HostPattern != "api.example.com" {
+		t.Errorf("HostPattern = %q, want %q", got[0].HostPattern, "api.example.com")
 	}
-	if got.PathPattern != "/v2" {
-		t.Errorf("PathPattern = %q, want %q", got.PathPattern, "/v2")
+	if got[0].PathPattern != "/v2" {
+		t.Errorf("PathPattern = %q, want %q", got[0].PathPattern, "/v2")
 	}
-	if got.InjectionConfig == nil {
+	if got[0].InjectionConfig == nil {
 		t.Fatal("InjectionConfig is nil")
 	}
-	if got.InjectionConfig.HeaderName != "X-Api-Key" {
-		t.Errorf("HeaderName = %q, want %q", got.InjectionConfig.HeaderName, "X-Api-Key")
+	if got[0].InjectionConfig.HeaderName != "X-Api-Key" {
+		t.Errorf("HeaderName = %q, want %q", got[0].InjectionConfig.HeaderName, "X-Api-Key")
 	}
-	if got.InjectionConfig.ValueFormat != "Token {value}" {
-		t.Errorf("ValueFormat = %q, want %q", got.InjectionConfig.ValueFormat, "Token {value}")
+	if got[0].InjectionConfig.ValueFormat != "Token {value}" {
+		t.Errorf("ValueFormat = %q, want %q", got[0].InjectionConfig.ValueFormat, "Token {value}")
 	}
 }
 
-func TestMapper_OtherType_MultipleHosts_Error(t *testing.T) {
+func TestMapper_OtherType_MultipleHosts(t *testing.T) {
 	t.Parallel()
 
 	mapper := NewSecretMapper(secretservice.NewRegistry())
@@ -149,12 +154,25 @@ func TestMapper_OtherType_MultipleHosts_Error(t *testing.T) {
 		Hosts: []string{"api.example.com", "api2.example.com"},
 	}
 
-	_, err := mapper.Map(item, "my-key-123")
-	if err == nil {
-		t.Fatal("expected error for multiple hosts, got nil")
+	got, err := mapper.Map(item, "my-key-123")
+	if err != nil {
+		t.Fatalf("Map() unexpected error: %v", err)
 	}
-	if !strings.Contains(err.Error(), "one host per secret") {
-		t.Errorf("error should mention 'one host per secret', got: %v", err)
+	if len(got) != 2 {
+		t.Fatalf("Map() returned %d inputs, want 2", len(got))
+	}
+
+	if got[0].Name != "my-token-api-example-com" {
+		t.Errorf("got[0].Name = %q, want %q", got[0].Name, "my-token-api-example-com")
+	}
+	if got[0].HostPattern != "api.example.com" {
+		t.Errorf("got[0].HostPattern = %q, want %q", got[0].HostPattern, "api.example.com")
+	}
+	if got[1].Name != "my-token-api2-example-com" {
+		t.Errorf("got[1].Name = %q, want %q", got[1].Name, "my-token-api2-example-com")
+	}
+	if got[1].HostPattern != "api2.example.com" {
+		t.Errorf("got[1].HostPattern = %q, want %q", got[1].HostPattern, "api2.example.com")
 	}
 }
 
@@ -171,18 +189,21 @@ func TestMapper_OtherType_MinimalFields(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Map() error: %v", err)
 	}
+	if len(got) != 1 {
+		t.Fatalf("Map() returned %d inputs, want 1", len(got))
+	}
 
-	if got.Name != "other" {
-		t.Errorf("Name = %q, want %q", got.Name, "other")
+	if got[0].Name != "other" {
+		t.Errorf("Name = %q, want %q", got[0].Name, "other")
 	}
-	if got.HostPattern != "*" {
-		t.Errorf("HostPattern = %q, want %q", got.HostPattern, "*")
+	if got[0].HostPattern != "*" {
+		t.Errorf("HostPattern = %q, want %q", got[0].HostPattern, "*")
 	}
-	if got.PathPattern != "" {
-		t.Errorf("PathPattern = %q, want empty", got.PathPattern)
+	if got[0].PathPattern != "" {
+		t.Errorf("PathPattern = %q, want empty", got[0].PathPattern)
 	}
-	if got.InjectionConfig != nil {
-		t.Errorf("InjectionConfig should be nil for other type without header, got %+v", got.InjectionConfig)
+	if got[0].InjectionConfig != nil {
+		t.Errorf("InjectionConfig should be nil for other type without header, got %+v", got[0].InjectionConfig)
 	}
 }
 
@@ -200,8 +221,11 @@ func TestMapper_OtherType_EmptyHosts(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Map() error: %v", err)
 	}
-	if got.HostPattern != "*" {
-		t.Errorf("HostPattern = %q, want %q for empty hosts", got.HostPattern, "*")
+	if len(got) != 1 {
+		t.Fatalf("Map() returned %d inputs, want 1", len(got))
+	}
+	if got[0].HostPattern != "*" {
+		t.Errorf("HostPattern = %q, want %q for empty hosts", got[0].HostPattern, "*")
 	}
 }
 
@@ -222,6 +246,28 @@ func TestConvertTemplate(t *testing.T) {
 	for _, tt := range tests {
 		if got := convertTemplate(tt.input); got != tt.want {
 			t.Errorf("convertTemplate(%q) = %q, want %q", tt.input, got, tt.want)
+		}
+	}
+}
+
+func TestSanitizeName(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		input string
+		want  string
+	}{
+		{"api.example.com", "api-example-com"},
+		{"*.example.com", "example-com"},
+		{"api2.example.com", "api2-example-com"},
+		{"api.example.com/v2", "api-example-com-v2"},
+		{"already-safe", "already-safe"},
+		{"UPPER.case.com", "UPPER-case-com"},
+	}
+
+	for _, tt := range tests {
+		if got := sanitizeName(tt.input); got != tt.want {
+			t.Errorf("sanitizeName(%q) = %q, want %q", tt.input, got, tt.want)
 		}
 	}
 }

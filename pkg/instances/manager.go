@@ -305,11 +305,11 @@ func (m *manager) Add(ctx context.Context, opts AddOptions) (Instance, error) {
 			if err != nil {
 				return nil, fmt.Errorf("failed to get secret %q at index %d: %w", name, i, err)
 			}
-			input, err := mapper.Map(item, value)
+			inputs, err := mapper.Map(item, value)
 			if err != nil {
 				return nil, fmt.Errorf("failed to map secret %q at index %d: %w", name, i, err)
 			}
-			onecliSecrets = append(onecliSecrets, input)
+			onecliSecrets = append(onecliSecrets, inputs...)
 
 			if item.Type != secret.TypeOther {
 				if svc, svcErr := m.secretServiceRegistry.Get(item.Type); svcErr == nil {
