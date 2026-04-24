@@ -120,6 +120,24 @@ type AgentLister interface {
 	ListAgents() ([]string, error)
 }
 
+// Dashboard is an optional interface for runtimes that provide a web dashboard.
+// Runtimes implementing this interface expose a URL for accessing the workspace dashboard.
+//
+// Example implementation:
+//
+//	func (r *myRuntime) GetURL(ctx context.Context, instanceID string) (string, error) {
+//	    port, err := r.readStoredPort(instanceID)
+//	    if err != nil {
+//	        return "", err
+//	    }
+//	    return fmt.Sprintf("http://localhost:%d", port), nil
+//	}
+type Dashboard interface {
+	// GetURL returns the dashboard URL for the given runtime instance ID.
+	// Returns an error if the dashboard URL cannot be determined.
+	GetURL(ctx context.Context, instanceID string) (string, error)
+}
+
 // Terminal is an optional interface for runtimes that support interactive terminal sessions.
 // Runtimes implementing this interface enable the terminal command for connecting to running instances.
 //
