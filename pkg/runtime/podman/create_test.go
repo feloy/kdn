@@ -1171,6 +1171,170 @@ func TestCreate_StepLogger_FailOnCreateContainer(t *testing.T) {
 	}
 }
 
+func TestCreate_StepLogger_FailOnPrepareFeatures(t *testing.T) {
+	t.Parallel()
+
+	storageDir := t.TempDir()
+	sourcePath := t.TempDir()
+
+	fakeExec := exec.NewFake()
+	fakeExec.RunFunc = func(ctx context.Context, args ...string) error {
+		return nil
+	}
+	fakeExec.OutputFunc = func(ctx context.Context, args ...string) ([]byte, error) {
+		return []byte("container-id-123"), nil
+	}
+
+	p := &podmanRuntime{
+		system:     &fakeSystem{},
+		executor:   fakeExec,
+		storageDir: storageDir,
+		config:     &fakeConfig{},
+	}
+
+	fakeLogger := &fakeStepLogger{}
+	ctx := steplogger.WithLogger(context.Background(), fakeLogger)
+
+	// Reference a non-existent local feature to cause Download to fail.
+	featuresMap := map[string]map[string]interface{}{
+		"./nonexistent-feature": {},
+	}
+	params := runtime.CreateParams{
+		Name:               "test-workspace",
+		SourcePath:         sourcePath,
+		Agent:              "test_agent",
+		WorkspaceConfigDir: sourcePath,
+		WorkspaceConfig: &workspace.WorkspaceConfiguration{
+			Features: &featuresMap,
+		},
+	}
+
+	_, err := p.Create(ctx, params)
+	if err == nil {
+		t.Fatal("Expected Create() to fail, got nil")
+	}
+
+	if fakeLogger.completeCalls != 1 {
+		t.Errorf("Expected Complete() to be called 1 time, got %d", fakeLogger.completeCalls)
+	}
+
+	// Exactly two Start calls: create dir, then download features.
+	if len(fakeLogger.startCalls) != 2 {
+		t.Fatalf("Expected 2 Start() calls, got %d", len(fakeLogger.startCalls))
+	}
+
+	expectedSteps := []string{
+		"Creating temporary build directory",
+		"Downloading devcontainer features",
+	}
+	for i, expected := range expectedSteps {
+		if fakeLogger.startCalls[i].inProgress != expected {
+			t.Errorf("Step %d: expected %q, got %q", i, expected, fakeLogger.startCalls[i].inProgress)
+		}
+	}
+
+	if len(fakeLogger.failCalls) != 1 {
+		t.Fatalf("Expected 1 Fail() call, got %d", len(fakeLogger.failCalls))
+	}
+	if fakeLogger.failCalls[0] == nil {
+		t.Error("Expected Fail() to be called with non-nil error")
+	}
+}
+
+func TestCreate_StepLogger_Success_WithFeatures(t *testing.T) {
+	t.Parallel()
+
+	storageDir := t.TempDir()
+	sourcePath := t.TempDir()
+
+	// Set up a minimal local feature.
+	configDir := t.TempDir()
+	featureDir := filepath.Join(configDir, "my-feature")
+	if err := os.MkdirAll(featureDir, 0755); err != nil {
+		t.Fatalf("failed to create feature dir: %v", err)
+	}
+	if err := os.WriteFile(
+		filepath.Join(featureDir, "devcontainer-feature.json"),
+		[]byte(`{"id":"my-feature","version":"1.0.0"}`),
+		0644,
+	); err != nil {
+		t.Fatalf("failed to write devcontainer-feature.json: %v", err)
+	}
+	if err := os.WriteFile(
+		filepath.Join(featureDir, "install.sh"),
+		[]byte("#!/bin/bash\necho installed"),
+		0755,
+	); err != nil {
+		t.Fatalf("failed to write install.sh: %v", err)
+	}
+
+	fakeExec := exec.NewFake()
+	fakeExec.RunFunc = func(ctx context.Context, args ...string) error {
+		return nil
+	}
+	fakeExec.OutputFunc = func(ctx context.Context, args ...string) ([]byte, error) {
+		return []byte("container-id-123"), nil
+	}
+
+	p := &podmanRuntime{
+		system:     &fakeSystem{},
+		executor:   fakeExec,
+		storageDir: storageDir,
+		config:     &fakeConfig{},
+	}
+
+	fakeLogger := &fakeStepLogger{}
+	ctx := steplogger.WithLogger(context.Background(), fakeLogger)
+
+	featuresMap := map[string]map[string]interface{}{
+		"./my-feature": {},
+	}
+	params := runtime.CreateParams{
+		Name:               "test-workspace",
+		SourcePath:         sourcePath,
+		Agent:              "test_agent",
+		WorkspaceConfigDir: configDir,
+		WorkspaceConfig: &workspace.WorkspaceConfiguration{
+			Features: &featuresMap,
+		},
+	}
+
+	_, err := p.Create(ctx, params)
+	if err != nil {
+		t.Fatalf("Create() failed: %v", err)
+	}
+
+	if fakeLogger.completeCalls != 1 {
+		t.Errorf("Expected Complete() to be called 1 time, got %d", fakeLogger.completeCalls)
+	}
+	if len(fakeLogger.failCalls) != 0 {
+		t.Errorf("Expected no Fail() calls, got %d", len(fakeLogger.failCalls))
+	}
+
+	// Six steps: create dir, download features, containerfile, build, onecli services, workspace container.
+	expectedSteps := []stepCall{
+		{inProgress: "Creating temporary build directory", completed: "Temporary build directory created"},
+		{inProgress: "Downloading devcontainer features", completed: "Devcontainer features downloaded"},
+		{inProgress: "Generating Containerfile", completed: "Containerfile generated"},
+		{inProgress: "Building container image: kdn-test-workspace", completed: "Container image built"},
+		{inProgress: "Creating onecli services", completed: "Onecli services created"},
+		{inProgress: "Creating workspace container: test-workspace", completed: "Workspace container created"},
+	}
+
+	if len(fakeLogger.startCalls) != len(expectedSteps) {
+		t.Fatalf("Expected %d Start() calls, got %d", len(expectedSteps), len(fakeLogger.startCalls))
+	}
+	for i, expected := range expectedSteps {
+		actual := fakeLogger.startCalls[i]
+		if actual.inProgress != expected.inProgress {
+			t.Errorf("Step %d: expected inProgress %q, got %q", i, expected.inProgress, actual.inProgress)
+		}
+		if actual.completed != expected.completed {
+			t.Errorf("Step %d: expected completed %q, got %q", i, expected.completed, actual.completed)
+		}
+	}
+}
+
 func TestCreate_CleansUpInstanceDirectory(t *testing.T) {
 	t.Parallel()
 
