@@ -276,8 +276,8 @@ func TestAvailableSecretServicesContainAnthropic(t *testing.T) {
 	if svc.Name() != "anthropic" {
 		t.Errorf("Name() = %q, want %q", svc.Name(), "anthropic")
 	}
-	if svc.HostPattern() != "api.anthropic.com" {
-		t.Errorf("HostPattern() = %q, want %q", svc.HostPattern(), "api.anthropic.com")
+	if len(svc.HostsPatterns()) == 0 || svc.HostsPatterns()[0] != "api.anthropic.com" {
+		t.Errorf("HostsPatterns() = %v, want %v", svc.HostsPatterns(), []string{"api.anthropic.com"})
 	}
 	if svc.Path() != "" {
 		t.Errorf("Path() = %q, want empty string", svc.Path())
