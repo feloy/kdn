@@ -180,7 +180,7 @@ The runtime system provides a pluggable architecture for managing workspaces on 
 
 ### Podman Runtime — Deny-mode Networking
 
-When a workspace has `network.mode = deny` with at least one allowed host (from `network.hosts` or automatically derived from configured secrets), the Podman runtime enforces outbound traffic filtering on every `Start()` using two layers:
+When a workspace has `network.mode = deny`, the Podman runtime enforces outbound traffic filtering on every `Start()` using two layers. Allowed hosts come from `network.hosts` and are automatically augmented by host patterns derived from configured secrets. With no allowed hosts at all, the approval-handler denies every request (fully-isolated workspace).
 
 1. **nftables firewall (kernel level)**: A `network-guard` sidecar with `CAP_NET_ADMIN` runs nftables rules that DROP outbound traffic from the agent's UID. Loopback and `host.containers.internal` are always allowed. This prevents bypassing the proxy by unsetting `HTTP_PROXY`.
 2. **OneCLI proxy (application level)**: All existing OneCLI rules are deleted, a single `manual_approval` rule for `*` is created (**`"allow"` is not a valid OneCLI action**), and the `approval-handler` sidecar approves/denies intercepted requests by hostname pattern.

@@ -105,15 +105,15 @@ func (p *podmanRuntime) Start(ctx context.Context, id string) (runtime.RuntimeIn
 	secretHosts := collectSecretHosts(wsCfg, p.secretStore, p.secretServiceRegistry)
 	allHosts := mergeHosts(explicitHosts, secretHosts)
 
-	// Networking rules are only configured when mode is explicitly deny AND at
-	// least one allowed host is available (from explicit config or secrets).
-	// All other cases (allow, no config, deny without any hosts) clear any
-	// stale rules so that mode switches take effect without recreating the workspace.
+	// Networking rules are configured whenever mode is explicitly deny, regardless
+	// of whether any hosts are allowed. An empty host list causes the
+	// approval-handler to deny all requests, which is the correct behaviour for
+	// a fully-isolated workspace. Allow mode (or no config) clears any stale
+	// rules so that mode switches take effect without recreating the workspace.
 	shouldConfigureNetworking := wsCfg != nil &&
 		wsCfg.Network != nil &&
 		wsCfg.Network.Mode != nil &&
-		*wsCfg.Network.Mode == workspace.Deny &&
-		len(allHosts) > 0
+		*wsCfg.Network.Mode == workspace.Deny
 
 	// Start the network-guard container so we can exec nftables commands into it.
 	networkGuardContainer := podName + "-network-guard"
