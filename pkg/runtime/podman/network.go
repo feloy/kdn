@@ -31,11 +31,11 @@ import (
 )
 
 // loadNetworkConfig reads the merged workspace configuration for a project by
-// combining the workspace-level config (.kaiden/workspace.json) with the
-// project-level config from projects.json. It mirrors the merge logic used
-// at workspace creation time so that edits to projects.json are picked up on
+// combining workspace-level, project-level, and agent-level configs. It mirrors
+// the merge logic used at workspace creation time so that edits take effect on
 // the next Start() without recreating the workspace.
-func loadNetworkConfig(sourcePath, storageDir, projectID string) (*workspace.WorkspaceConfiguration, error) {
+// Precedence (highest to lowest): agent > project > workspace.
+func loadNetworkConfig(sourcePath, storageDir, projectID, agentName string) (*workspace.WorkspaceConfiguration, error) {
 	merger := config.NewMerger()
 
 	var merged *workspace.WorkspaceConfiguration
@@ -56,6 +56,16 @@ func loadNetworkConfig(sourcePath, storageDir, projectID string) (*workspace.Wor
 		merged = merger.Merge(merged, pc)
 	}
 
+	if agentName != "" {
+		agentLoader, err := config.NewAgentConfigLoader(storageDir)
+		if err != nil {
+			return nil, fmt.Errorf("initializing agent config loader: %w", err)
+		}
+		if ac, loadErr := agentLoader.Load(agentName); loadErr == nil {
+			merged = merger.Merge(merged, ac)
+		}
+	}
+
 	return merged, nil
 }
 
@@ -63,17 +73,17 @@ func loadNetworkConfig(sourcePath, storageDir, projectID string) (*workspace.Wor
 // listed in wsCfg. For known secret types, patterns come from the secret
 // service registry; for "other" secrets, they come from the stored metadata.
 // Returns nil when any required input is nil or when no secrets are configured.
-func collectSecretHosts(wsCfg *workspace.WorkspaceConfiguration, store secret.Store, registry secretservice.Registry) []string {
+func collectSecretHosts(wsCfg *workspace.WorkspaceConfiguration, store secret.Store, registry secretservice.Registry) ([]string, error) {
 	if wsCfg == nil || wsCfg.Secrets == nil || len(*wsCfg.Secrets) == 0 {
-		return nil
+		return nil, nil
 	}
 	if store == nil || registry == nil {
-		return nil
+		return nil, nil
 	}
 
 	items, err := store.List()
 	if err != nil {
-		return nil
+		return nil, fmt.Errorf("listing secrets: %w", err)
 	}
 
 	byName := make(map[string]secret.ListItem, len(items))
@@ -105,7 +115,7 @@ func collectSecretHosts(wsCfg *workspace.WorkspaceConfiguration, store secret.St
 			}
 		}
 	}
-	return hosts
+	return hosts, nil
 }
 
 // mergeHosts returns a deduplicated list of all hosts from a and b,

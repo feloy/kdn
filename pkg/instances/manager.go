@@ -752,18 +752,12 @@ func (m *manager) GetDashboardURL(ctx context.Context, nameOrID string) (string,
 	return dashboardRuntime.GetURL(ctx, runtimeData.InstanceID)
 }
 
-// secretServiceRegistryAware is an optional interface for runtimes that need the
-// secret service registry to resolve host patterns for networking decisions.
-type secretServiceRegistryAware interface {
-	SetSecretServiceRegistry(secretservice.Registry)
-}
-
 // RegisterRuntime registers a runtime with the manager's registry.
 func (m *manager) RegisterRuntime(rt runtime.Runtime) error {
 	if err := m.runtimeRegistry.Register(rt); err != nil {
 		return err
 	}
-	if aware, ok := rt.(secretServiceRegistryAware); ok {
+	if aware, ok := rt.(runtime.SecretServiceRegistryAware); ok {
 		aware.SetSecretServiceRegistry(m.secretServiceRegistry)
 	}
 	return nil

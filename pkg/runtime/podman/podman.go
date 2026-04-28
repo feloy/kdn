@@ -60,6 +60,9 @@ var _ runtime.StorageAware = (*podmanRuntime)(nil)
 // Ensure podmanRuntime implements runtime.AgentLister at compile time.
 var _ runtime.AgentLister = (*podmanRuntime)(nil)
 
+// Ensure podmanRuntime implements runtime.SecretServiceRegistryAware at compile time.
+var _ runtime.SecretServiceRegistryAware = (*podmanRuntime)(nil)
+
 // New creates a new Podman runtime instance.
 func New() runtime.Runtime {
 	return newWithDeps(system.New(), exec.New())

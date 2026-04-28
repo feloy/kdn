@@ -89,7 +89,7 @@ func (p *podmanRuntime) Start(ctx context.Context, id string) (runtime.RuntimeIn
 	// unless the network mode is explicitly set to allow in the workspace config.
 	// The policy is read fresh from projects.json on each start so edits take effect
 	// without recreating the workspace.
-	wsCfg, loadErr := loadNetworkConfig(tmplData.SourcePath, p.globalStorageDir, tmplData.ProjectID)
+	wsCfg, loadErr := loadNetworkConfig(tmplData.SourcePath, p.globalStorageDir, tmplData.ProjectID, tmplData.Agent)
 	if loadErr != nil {
 		return runtime.RuntimeInfo{}, fmt.Errorf("failed to load network config: %w", loadErr)
 	}
@@ -102,7 +102,10 @@ func (p *podmanRuntime) Start(ctx context.Context, id string) (runtime.RuntimeIn
 
 	// Automatically add host patterns from secrets so users do not need to
 	// list them explicitly under network.hosts.
-	secretHosts := collectSecretHosts(wsCfg, p.secretStore, p.secretServiceRegistry)
+	secretHosts, err := collectSecretHosts(wsCfg, p.secretStore, p.secretServiceRegistry)
+	if err != nil {
+		return runtime.RuntimeInfo{}, fmt.Errorf("failed to collect secret hosts: %w", err)
+	}
 	allHosts := mergeHosts(explicitHosts, secretHosts)
 
 	// Networking rules are configured whenever mode is explicitly deny, regardless
