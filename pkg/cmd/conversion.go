@@ -46,9 +46,16 @@ func instanceToWorkspace(instance instances.Instance) api.Workspace {
 			Configuration: instance.GetConfigDir(),
 			Source:        instance.GetSourceDir(),
 		},
+		Timestamps: api.WorkspaceTimestamps{
+			Created: instance.GetCreatedAt().UnixMilli(),
+		},
 	}
 	if model := instance.GetModel(); model != "" {
 		ws.Model = &model
+	}
+	if startedAt := instance.GetStartedAt(); !startedAt.IsZero() {
+		ms := startedAt.UnixMilli()
+		ws.Timestamps.Started = &ms
 	}
 	return ws
 }

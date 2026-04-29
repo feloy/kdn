@@ -27,6 +27,7 @@ import (
 	"regexp"
 	"strings"
 	"sync"
+	"time"
 
 	api "github.com/openkaiden/kdn-api/cli/go"
 	workspace "github.com/openkaiden/kdn-api/workspace-configuration/go"
@@ -109,6 +110,7 @@ type manager struct {
 	secretServiceRegistry secretservice.Registry
 	secretStore           secret.Store
 	gitDetector           git.Detector
+	now                   func() time.Time
 }
 
 // Compile-time check to ensure manager implements Manager interface
@@ -124,12 +126,12 @@ func NewManager(storageDir string) (Manager, error) {
 	agentReg := agent.NewRegistry()
 	secretServiceReg := secretservice.NewRegistry()
 	secretStore := secret.NewStore(storageDir)
-	return newManagerWithFactory(storageDir, NewInstanceFromData, generator.New(), reg, agentReg, secretServiceReg, secretStore, git.NewDetector())
+	return newManagerWithFactory(storageDir, NewInstanceFromData, generator.New(), reg, agentReg, secretServiceReg, secretStore, git.NewDetector(), time.Now)
 }
 
 // newManagerWithFactory creates a new instance manager with a custom instance factory, generator, registry, and git detector.
 // This is unexported and primarily useful for testing with fake instances, generators, runtimes, and git detector.
-func newManagerWithFactory(storageDir string, factory InstanceFactory, gen generator.Generator, reg runtime.Registry, agentReg agent.Registry, secretServiceReg secretservice.Registry, secretStore secret.Store, detector git.Detector) (Manager, error) {
+func newManagerWithFactory(storageDir string, factory InstanceFactory, gen generator.Generator, reg runtime.Registry, agentReg agent.Registry, secretServiceReg secretservice.Registry, secretStore secret.Store, detector git.Detector, clock func() time.Time) (Manager, error) {
 	if storageDir == "" {
 		return nil, errors.New("storage directory cannot be empty")
 	}
@@ -154,6 +156,9 @@ func newManagerWithFactory(storageDir string, factory InstanceFactory, gen gener
 	if detector == nil {
 		return nil, errors.New("git detector cannot be nil")
 	}
+	if clock == nil {
+		return nil, errors.New("clock cannot be nil")
+	}
 
 	// Ensure storage directory exists
 	if err := os.MkdirAll(storageDir, 0755); err != nil {
@@ -171,6 +176,7 @@ func newManagerWithFactory(storageDir string, factory InstanceFactory, gen gener
 		secretServiceRegistry: secretServiceReg,
 		secretStore:           secretStore,
 		gitDetector:           detector,
+		now:                   clock,
 	}, nil
 }
 
@@ -363,9 +369,10 @@ func (m *manager) Add(ctx context.Context, opts AddOptions) (Instance, error) {
 			State:      runtimeInfo.State,
 			Info:       runtimeInfo.Info,
 		},
-		Project: project,
-		Agent:   opts.Agent,
-		Model:   opts.Model,
+		Project:   project,
+		Agent:     opts.Agent,
+		Model:     opts.Model,
+		CreatedAt: m.now(),
 	}
 
 	instances = append(instances, instanceWithID)
@@ -431,6 +438,8 @@ func (m *manager) Start(ctx context.Context, id string) error {
 	maps.Copy(mergedInfo, runtimeData.Info)
 	maps.Copy(mergedInfo, runtimeInfo.Info)
 
+	startedAt := m.now()
+
 	// Update the instance with new runtime state
 	updatedInstance := &instance{
 		ID:        instanceToStart.GetID(),
@@ -443,9 +452,11 @@ func (m *manager) Start(ctx context.Context, id string) error {
 			State:      runtimeInfo.State,
 			Info:       mergedInfo,
 		},
-		Project: instanceToStart.GetProject(),
-		Agent:   instanceToStart.GetAgent(),
-		Model:   instanceToStart.GetModel(),
+		Project:   instanceToStart.GetProject(),
+		Agent:     instanceToStart.GetAgent(),
+		Model:     instanceToStart.GetModel(),
+		CreatedAt: instanceToStart.GetCreatedAt(),
+		StartedAt: startedAt,
 	}
 
 	instances[index] = updatedInstance
@@ -525,9 +536,11 @@ func (m *manager) Stop(ctx context.Context, id string) error {
 			State:      runtimeInfo.State,
 			Info:       mergedInfo,
 		},
-		Project: instanceToStop.GetProject(),
-		Agent:   instanceToStop.GetAgent(),
-		Model:   instanceToStop.GetModel(),
+		Project:   instanceToStop.GetProject(),
+		Agent:     instanceToStop.GetAgent(),
+		Model:     instanceToStop.GetModel(),
+		CreatedAt: instanceToStop.GetCreatedAt(),
+		// StartedAt is intentionally zero on stop: the instance is no longer running
 	}
 
 	instances[index] = updatedInstance

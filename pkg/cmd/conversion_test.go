@@ -24,6 +24,7 @@ import (
 	"errors"
 	"fmt"
 	"testing"
+	"time"
 
 	api "github.com/openkaiden/kdn-api/cli/go"
 	"github.com/openkaiden/kdn/pkg/instances"
@@ -193,6 +194,66 @@ func TestInstanceToWorkspace(t *testing.T) {
 		}
 	})
 
+	t.Run("includes created timestamp from instance", func(t *testing.T) {
+		t.Parallel()
+
+		sourceDir := t.TempDir()
+		configDir := t.TempDir()
+		createdAt := time.Date(2026, 1, 15, 10, 0, 0, 0, time.UTC)
+
+		instanceData := instances.InstanceData{
+			ID:        "ts-id",
+			Name:      "ts-workspace",
+			Paths:     instances.InstancePaths{Source: sourceDir, Configuration: configDir},
+			CreatedAt: createdAt,
+		}
+		instance, err := instances.NewInstanceFromData(instanceData)
+		if err != nil {
+			t.Fatalf("Failed to create instance from data: %v", err)
+		}
+
+		result := instanceToWorkspace(instance)
+
+		expectedMs := createdAt.UnixMilli()
+		if result.Timestamps.Created != expectedMs {
+			t.Errorf("Expected Timestamps.Created %d, got %d", expectedMs, result.Timestamps.Created)
+		}
+		if result.Timestamps.Started != nil {
+			t.Errorf("Expected Timestamps.Started to be nil, got %d", *result.Timestamps.Started)
+		}
+	})
+
+	t.Run("includes started timestamp when set", func(t *testing.T) {
+		t.Parallel()
+
+		sourceDir := t.TempDir()
+		configDir := t.TempDir()
+		createdAt := time.Date(2026, 1, 15, 10, 0, 0, 0, time.UTC)
+		startedAt := time.Date(2026, 1, 15, 10, 5, 0, 0, time.UTC)
+
+		instanceData := instances.InstanceData{
+			ID:        "ts-running-id",
+			Name:      "ts-running-workspace",
+			Paths:     instances.InstancePaths{Source: sourceDir, Configuration: configDir},
+			CreatedAt: createdAt,
+			StartedAt: startedAt,
+		}
+		instance, err := instances.NewInstanceFromData(instanceData)
+		if err != nil {
+			t.Fatalf("Failed to create instance from data: %v", err)
+		}
+
+		result := instanceToWorkspace(instance)
+
+		expectedStartedMs := startedAt.UnixMilli()
+		if result.Timestamps.Started == nil {
+			t.Fatal("Expected Timestamps.Started to be set")
+		}
+		if *result.Timestamps.Started != expectedStartedMs {
+			t.Errorf("Expected Timestamps.Started %d, got %d", expectedStartedMs, *result.Timestamps.Started)
+		}
+	})
+
 	t.Run("includes all required fields", func(t *testing.T) {
 		t.Parallel()
 
@@ -243,6 +304,9 @@ func TestInstanceToWorkspace(t *testing.T) {
 		if _, exists := parsed["paths"]; !exists {
 			t.Error("Expected 'paths' field in JSON")
 		}
+		if _, exists := parsed["timestamps"]; !exists {
+			t.Error("Expected 'timestamps' field in JSON")
+		}
 
 		// Verify paths structure
 		paths, ok := parsed["paths"].(map[string]interface{})
@@ -255,6 +319,15 @@ func TestInstanceToWorkspace(t *testing.T) {
 		}
 		if _, exists := paths["configuration"]; !exists {
 			t.Error("Expected 'paths.configuration' field in JSON")
+		}
+
+		// Verify timestamps structure
+		timestamps, ok := parsed["timestamps"].(map[string]interface{})
+		if !ok {
+			t.Fatal("Expected 'timestamps' to be an object")
+		}
+		if _, exists := timestamps["created"]; !exists {
+			t.Error("Expected 'timestamps.created' field in JSON")
 		}
 	})
 }

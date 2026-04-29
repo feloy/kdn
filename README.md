@@ -857,6 +857,9 @@ $ kdn init /path/to/another-project --runtime podman --agent claude --model clau
   "paths": {
     "source": "/absolute/path/to/another-project",
     "configuration": "/absolute/path/to/another-project/.kaiden"
+  },
+  "timestamps": {
+    "created": 1752912000000
   }
 }
 ```
@@ -895,6 +898,10 @@ $ kdn workspace list -o json
       "paths": {
         "source": "/absolute/path/to/project",
         "configuration": "/absolute/path/to/project/.kaiden"
+      },
+      "timestamps": {
+        "created": 1752912000000,
+        "started": 1752912300000
       }
     },
     {
@@ -907,6 +914,9 @@ $ kdn workspace list -o json
       "paths": {
         "source": "/absolute/path/to/another-project",
         "configuration": "/absolute/path/to/another-project/.kaiden"
+      },
+      "timestamps": {
+        "created": 1752912000000
       }
     }
   ]
@@ -976,6 +986,9 @@ $ kdn workspace list -o json
       "paths": {
         "source": "/absolute/path/to/another-project",
         "configuration": "/absolute/path/to/another-project/.kaiden"
+      },
+      "timestamps": {
+        "created": 1752912000000
       }
     }
   ]
@@ -2975,11 +2988,13 @@ kdn workspace list
 Output:
 ```text
 NAME             SHORT ID      PROJECT                              SOURCES                              AGENT    MODEL                          STATE
-myproject        a1b2c3d4e5f6  /absolute/path/to/myproject          /absolute/path/to/myproject          claude   claude-sonnet-4-20250514       running
+myproject        a1b2c3d4e5f6  /absolute/path/to/myproject          /absolute/path/to/myproject          claude   claude-sonnet-4-20250514       running for 5min
 another-project  f6e5d4c3b2a1  /absolute/path/to/another-project    /absolute/path/to/another-project    goose                                   stopped
 ```
 
 The `AGENT` and `MODEL` columns are displayed separately. When no model is set, the `MODEL` column is empty.
+
+The `STATE` column shows a human-readable duration for running workspaces: `running for Xs` (under 1 minute), `running for Xmin` (under 1 hour), or `running for H:MMh` (1 hour or more). Stopped, errored, or unknown workspaces show their state name directly.
 
 **Use the short alias:**
 ```bash
@@ -3004,6 +3019,10 @@ Output:
       "paths": {
         "source": "/absolute/path/to/myproject",
         "configuration": "/absolute/path/to/myproject/.kaiden"
+      },
+      "timestamps": {
+        "created": 1752912000000,
+        "started": 1752912300000
       }
     },
     {
@@ -3015,6 +3034,9 @@ Output:
       "paths": {
         "source": "/absolute/path/to/another-project",
         "configuration": "/absolute/path/to/another-project/.kaiden"
+      },
+      "timestamps": {
+        "created": 1752912000000
       }
     }
   ]
@@ -3022,6 +3044,8 @@ Output:
 ```
 
 The `model` field is only present when a model was explicitly specified during `init` with the `--model` flag. When no model is set, the field is omitted from the JSON output.
+
+The `timestamps` object is always present. `created` is a Unix millisecond timestamp recording when the workspace was registered. `started` is a Unix millisecond timestamp recording when the workspace was last started; it is omitted when the workspace is not running.
 
 **List with short flag:**
 ```bash

@@ -19,6 +19,7 @@ import (
 	"maps"
 	"os"
 	"path/filepath"
+	"time"
 
 	api "github.com/openkaiden/kdn-api/cli/go"
 )
@@ -79,6 +80,10 @@ type InstanceData struct {
 	// Model is the model ID configured for the agent (e.g., "claude-sonnet-4-20250514").
 	// Empty string means no model was explicitly specified.
 	Model string `json:"model,omitempty"`
+	// CreatedAt is when the instance was first registered.
+	CreatedAt time.Time `json:"created_at"`
+	// StartedAt is when the instance was last started. Zero value means not started.
+	StartedAt time.Time `json:"started_at,omitempty"`
 }
 
 // Instance represents a workspace instance with source and configuration directories.
@@ -107,6 +112,10 @@ type Instance interface {
 	GetAgent() string
 	// GetModel returns the model ID for this instance (empty if not set)
 	GetModel() string
+	// GetCreatedAt returns when the instance was first registered
+	GetCreatedAt() time.Time
+	// GetStartedAt returns when the instance was last started; zero value means not started
+	GetStartedAt() time.Time
 	// Dump returns the serializable data of the instance
 	Dump() InstanceData
 }
@@ -131,6 +140,10 @@ type instance struct {
 	Agent string
 	// Model is the model ID configured for the agent (empty if not set)
 	Model string
+	// CreatedAt is when the instance was first registered
+	CreatedAt time.Time
+	// StartedAt is when the instance was last started; zero value means not started
+	StartedAt time.Time
 }
 
 // Compile-time check to ensure instance implements Instance interface
@@ -199,6 +212,16 @@ func (i *instance) GetModel() string {
 	return i.Model
 }
 
+// GetCreatedAt returns when the instance was first registered
+func (i *instance) GetCreatedAt() time.Time {
+	return i.CreatedAt
+}
+
+// GetStartedAt returns when the instance was last started; zero value means not started
+func (i *instance) GetStartedAt() time.Time {
+	return i.StartedAt
+}
+
 // Dump returns the serializable data of the instance
 func (i *instance) Dump() InstanceData {
 	return InstanceData{
@@ -208,10 +231,12 @@ func (i *instance) Dump() InstanceData {
 			Source:        i.SourceDir,
 			Configuration: i.ConfigDir,
 		},
-		Runtime: i.Runtime,
-		Project: i.Project,
-		Agent:   i.Agent,
-		Model:   i.Model,
+		Runtime:   i.Runtime,
+		Project:   i.Project,
+		Agent:     i.Agent,
+		Model:     i.Model,
+		CreatedAt: i.CreatedAt,
+		StartedAt: i.StartedAt,
 	}
 }
 
@@ -271,6 +296,13 @@ func NewInstanceFromData(data InstanceData) (Instance, error) {
 		return nil, ErrInvalidPath
 	}
 
+	createdAt := data.CreatedAt
+	if createdAt.IsZero() {
+		// Backward compatibility: instances persisted before timestamp support
+		// get the current time as a conservative fallback.
+		createdAt = time.Now()
+	}
+
 	return &instance{
 		ID:        data.ID,
 		Name:      data.Name,
@@ -280,6 +312,8 @@ func NewInstanceFromData(data InstanceData) (Instance, error) {
 		Project:   data.Project,
 		Agent:     data.Agent,
 		Model:     data.Model,
+		CreatedAt: createdAt,
+		StartedAt: data.StartedAt,
 	}, nil
 }
 

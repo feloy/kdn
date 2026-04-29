@@ -26,6 +26,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	api "github.com/openkaiden/kdn-api/cli/go"
 	"github.com/openkaiden/kdn/pkg/cmd/testutil"
@@ -821,6 +822,237 @@ func TestWorkspaceListCmd_Model(t *testing.T) {
 
 		if workspacesList.Items[0].Model != nil {
 			t.Errorf("Expected Model to be nil in JSON output, got %q", *workspacesList.Items[0].Model)
+		}
+	})
+}
+
+func TestWorkspaceListCmd_Timestamps(t *testing.T) {
+	t.Parallel()
+
+	t.Run("json output includes created timestamp", func(t *testing.T) {
+		t.Parallel()
+
+		storageDir := t.TempDir()
+		sourcesDir := t.TempDir()
+
+		manager, err := instances.NewManager(storageDir)
+		if err != nil {
+			t.Fatalf("Failed to create manager: %v", err)
+		}
+
+		instance, err := instances.NewInstance(instances.NewInstanceParams{
+			SourceDir: sourcesDir,
+			ConfigDir: filepath.Join(sourcesDir, ".kaiden"),
+			Name:      "ts-workspace",
+		})
+		if err != nil {
+			t.Fatalf("Failed to create instance: %v", err)
+		}
+
+		if err := manager.RegisterRuntime(fake.New()); err != nil {
+			t.Fatalf("Failed to register fake runtime: %v", err)
+		}
+
+		before := time.Now().UnixMilli()
+		_, err = manager.Add(context.Background(), instances.AddOptions{Instance: instance, RuntimeType: "fake"})
+		if err != nil {
+			t.Fatalf("Failed to add instance: %v", err)
+		}
+		after := time.Now().UnixMilli()
+
+		rootCmd := NewRootCmd()
+		rootCmd.SetArgs([]string{"workspace", "list", "--storage", storageDir, "-o", "json"})
+
+		var output bytes.Buffer
+		rootCmd.SetOut(&output)
+
+		if err := rootCmd.Execute(); err != nil {
+			t.Fatalf("Expected no error, got %v", err)
+		}
+
+		var workspacesList api.WorkspacesList
+		if err := json.Unmarshal(output.Bytes(), &workspacesList); err != nil {
+			t.Fatalf("Failed to parse JSON output: %v\nOutput: %s", err, output.String())
+		}
+
+		if len(workspacesList.Items) != 1 {
+			t.Fatalf("Expected 1 item, got %d", len(workspacesList.Items))
+		}
+
+		ws := workspacesList.Items[0]
+		if ws.Timestamps.Created < before || ws.Timestamps.Created > after {
+			t.Errorf("Expected Created timestamp between %d and %d, got %d", before, after, ws.Timestamps.Created)
+		}
+		if ws.Timestamps.Started != nil {
+			t.Errorf("Expected Started to be nil for stopped instance, got %d", *ws.Timestamps.Started)
+		}
+	})
+
+	t.Run("json output includes started timestamp when running", func(t *testing.T) {
+		t.Parallel()
+
+		storageDir := t.TempDir()
+		sourcesDir := t.TempDir()
+
+		manager, err := instances.NewManager(storageDir)
+		if err != nil {
+			t.Fatalf("Failed to create manager: %v", err)
+		}
+
+		instance, err := instances.NewInstance(instances.NewInstanceParams{
+			SourceDir: sourcesDir,
+			ConfigDir: filepath.Join(sourcesDir, ".kaiden"),
+			Name:      "running-workspace",
+		})
+		if err != nil {
+			t.Fatalf("Failed to create instance: %v", err)
+		}
+
+		if err := manager.RegisterRuntime(fake.New()); err != nil {
+			t.Fatalf("Failed to register fake runtime: %v", err)
+		}
+
+		added, err := manager.Add(context.Background(), instances.AddOptions{Instance: instance, RuntimeType: "fake"})
+		if err != nil {
+			t.Fatalf("Failed to add instance: %v", err)
+		}
+
+		before := time.Now().UnixMilli()
+		if err := manager.Start(context.Background(), added.GetID()); err != nil {
+			t.Fatalf("Failed to start instance: %v", err)
+		}
+		after := time.Now().UnixMilli()
+
+		rootCmd := NewRootCmd()
+		rootCmd.SetArgs([]string{"workspace", "list", "--storage", storageDir, "-o", "json"})
+
+		var output bytes.Buffer
+		rootCmd.SetOut(&output)
+
+		if err := rootCmd.Execute(); err != nil {
+			t.Fatalf("Expected no error, got %v", err)
+		}
+
+		var workspacesList api.WorkspacesList
+		if err := json.Unmarshal(output.Bytes(), &workspacesList); err != nil {
+			t.Fatalf("Failed to parse JSON output: %v\nOutput: %s", err, output.String())
+		}
+
+		if len(workspacesList.Items) != 1 {
+			t.Fatalf("Expected 1 item, got %d", len(workspacesList.Items))
+		}
+
+		ws := workspacesList.Items[0]
+		if ws.Timestamps.Started == nil {
+			t.Fatal("Expected Started timestamp to be set for running instance")
+		}
+		if *ws.Timestamps.Started < before || *ws.Timestamps.Started > after {
+			t.Errorf("Expected Started timestamp between %d and %d, got %d", before, after, *ws.Timestamps.Started)
+		}
+	})
+}
+
+func TestFormatState(t *testing.T) {
+	t.Parallel()
+
+	t.Run("returns stopped for stopped instance", func(t *testing.T) {
+		t.Parallel()
+
+		sourceDir := t.TempDir()
+		configDir := t.TempDir()
+		data := instances.InstanceData{
+			ID:    "id1",
+			Name:  "ws",
+			Paths: instances.InstancePaths{Source: sourceDir, Configuration: configDir},
+			Runtime: instances.RuntimeData{
+				State: api.WorkspaceStateStopped,
+			},
+		}
+		inst, _ := instances.NewInstanceFromData(data)
+		if got := formatState(inst); got != "stopped" {
+			t.Errorf("Expected 'stopped', got %q", got)
+		}
+	})
+
+	t.Run("returns running for running instance with no start time", func(t *testing.T) {
+		t.Parallel()
+
+		sourceDir := t.TempDir()
+		configDir := t.TempDir()
+		data := instances.InstanceData{
+			ID:    "id2",
+			Name:  "ws",
+			Paths: instances.InstancePaths{Source: sourceDir, Configuration: configDir},
+			Runtime: instances.RuntimeData{
+				State: api.WorkspaceStateRunning,
+			},
+		}
+		inst, _ := instances.NewInstanceFromData(data)
+		if got := formatState(inst); got != "running" {
+			t.Errorf("Expected 'running', got %q", got)
+		}
+	})
+
+	t.Run("returns running for Xs when started less than a minute ago", func(t *testing.T) {
+		t.Parallel()
+
+		sourceDir := t.TempDir()
+		configDir := t.TempDir()
+		data := instances.InstanceData{
+			ID:        "id3",
+			Name:      "ws",
+			Paths:     instances.InstancePaths{Source: sourceDir, Configuration: configDir},
+			StartedAt: time.Now().Add(-30 * time.Second),
+			Runtime: instances.RuntimeData{
+				State: api.WorkspaceStateRunning,
+			},
+		}
+		inst, _ := instances.NewInstanceFromData(data)
+		got := formatState(inst)
+		if !strings.HasPrefix(got, "running for ") || !strings.HasSuffix(got, "s") {
+			t.Errorf("Expected 'running for Xs', got %q", got)
+		}
+	})
+
+	t.Run("returns running for Xmin when started between 1 and 60 minutes ago", func(t *testing.T) {
+		t.Parallel()
+
+		sourceDir := t.TempDir()
+		configDir := t.TempDir()
+		data := instances.InstanceData{
+			ID:        "id4",
+			Name:      "ws",
+			Paths:     instances.InstancePaths{Source: sourceDir, Configuration: configDir},
+			StartedAt: time.Now().Add(-5 * time.Minute),
+			Runtime: instances.RuntimeData{
+				State: api.WorkspaceStateRunning,
+			},
+		}
+		inst, _ := instances.NewInstanceFromData(data)
+		got := formatState(inst)
+		if got != "running for 5min" {
+			t.Errorf("Expected 'running for 5min', got %q", got)
+		}
+	})
+
+	t.Run("returns running for h:mmh when started over 1 hour ago", func(t *testing.T) {
+		t.Parallel()
+
+		sourceDir := t.TempDir()
+		configDir := t.TempDir()
+		data := instances.InstanceData{
+			ID:        "id5",
+			Name:      "ws",
+			Paths:     instances.InstancePaths{Source: sourceDir, Configuration: configDir},
+			StartedAt: time.Now().Add(-2*time.Hour - 15*time.Minute),
+			Runtime: instances.RuntimeData{
+				State: api.WorkspaceStateRunning,
+			},
+		}
+		inst, _ := instances.NewInstanceFromData(data)
+		got := formatState(inst)
+		if got != "running for 2:15h" {
+			t.Errorf("Expected 'running for 2:15h', got %q", got)
 		}
 	})
 }

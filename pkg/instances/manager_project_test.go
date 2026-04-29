@@ -18,6 +18,7 @@ import (
 	"context"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/openkaiden/kdn/pkg/agent"
 	"github.com/openkaiden/kdn/pkg/git"
@@ -37,7 +38,7 @@ func TestManager_detectProject(t *testing.T) {
 		// Create fake git detector that returns ErrNotGitRepository
 		gitDetector := newFakeGitDetector()
 
-		m, _ := newManagerWithFactory(tmpDir, fakeInstanceFactory, newFakeGenerator(), newTestRegistry(tmpDir), agent.NewRegistry(), secretservice.NewRegistry(), secret.NewStore(tmpDir), gitDetector)
+		m, _ := newManagerWithFactory(tmpDir, fakeInstanceFactory, newFakeGenerator(), newTestRegistry(tmpDir), agent.NewRegistry(), secretservice.NewRegistry(), secret.NewStore(tmpDir), gitDetector, time.Now)
 		mgr := m.(*manager)
 
 		result := mgr.detectProject(context.Background(), sourceDir)
@@ -60,7 +61,7 @@ func TestManager_detectProject(t *testing.T) {
 			"", // at root, relative path is empty
 		)
 
-		m, _ := newManagerWithFactory(tmpDir, fakeInstanceFactory, newFakeGenerator(), newTestRegistry(tmpDir), agent.NewRegistry(), secretservice.NewRegistry(), secret.NewStore(tmpDir), gitDetector)
+		m, _ := newManagerWithFactory(tmpDir, fakeInstanceFactory, newFakeGenerator(), newTestRegistry(tmpDir), agent.NewRegistry(), secretservice.NewRegistry(), secret.NewStore(tmpDir), gitDetector, time.Now)
 		mgr := m.(*manager)
 
 		result := mgr.detectProject(context.Background(), repoRoot)
@@ -85,7 +86,7 @@ func TestManager_detectProject(t *testing.T) {
 			filepath.Join("pkg", "git"),
 		)
 
-		m, _ := newManagerWithFactory(tmpDir, fakeInstanceFactory, newFakeGenerator(), newTestRegistry(tmpDir), agent.NewRegistry(), secretservice.NewRegistry(), secret.NewStore(tmpDir), gitDetector)
+		m, _ := newManagerWithFactory(tmpDir, fakeInstanceFactory, newFakeGenerator(), newTestRegistry(tmpDir), agent.NewRegistry(), secretservice.NewRegistry(), secret.NewStore(tmpDir), gitDetector, time.Now)
 		mgr := m.(*manager)
 
 		result := mgr.detectProject(context.Background(), subDir)
@@ -109,7 +110,7 @@ func TestManager_detectProject(t *testing.T) {
 			"", // at root
 		)
 
-		m, _ := newManagerWithFactory(tmpDir, fakeInstanceFactory, newFakeGenerator(), newTestRegistry(tmpDir), agent.NewRegistry(), secretservice.NewRegistry(), secret.NewStore(tmpDir), gitDetector)
+		m, _ := newManagerWithFactory(tmpDir, fakeInstanceFactory, newFakeGenerator(), newTestRegistry(tmpDir), agent.NewRegistry(), secretservice.NewRegistry(), secret.NewStore(tmpDir), gitDetector, time.Now)
 		mgr := m.(*manager)
 
 		result := mgr.detectProject(context.Background(), repoRoot)
@@ -133,7 +134,7 @@ func TestManager_detectProject(t *testing.T) {
 			filepath.Join("pkg", "utils"),
 		)
 
-		m, _ := newManagerWithFactory(tmpDir, fakeInstanceFactory, newFakeGenerator(), newTestRegistry(tmpDir), agent.NewRegistry(), secretservice.NewRegistry(), secret.NewStore(tmpDir), gitDetector)
+		m, _ := newManagerWithFactory(tmpDir, fakeInstanceFactory, newFakeGenerator(), newTestRegistry(tmpDir), agent.NewRegistry(), secretservice.NewRegistry(), secret.NewStore(tmpDir), gitDetector, time.Now)
 		mgr := m.(*manager)
 
 		result := mgr.detectProject(context.Background(), subDir)
@@ -157,7 +158,7 @@ func TestManager_detectProject(t *testing.T) {
 			"",
 		)
 
-		m, _ := newManagerWithFactory(tmpDir, fakeInstanceFactory, newFakeGenerator(), newTestRegistry(tmpDir), agent.NewRegistry(), secretservice.NewRegistry(), secret.NewStore(tmpDir), gitDetector)
+		m, _ := newManagerWithFactory(tmpDir, fakeInstanceFactory, newFakeGenerator(), newTestRegistry(tmpDir), agent.NewRegistry(), secretservice.NewRegistry(), secret.NewStore(tmpDir), gitDetector, time.Now)
 		mgr := m.(*manager)
 
 		result := mgr.detectProject(context.Background(), repoRoot)
@@ -181,7 +182,7 @@ func TestManager_detectProject(t *testing.T) {
 			filepath.Join("pkg", "cmd"),
 		)
 
-		m, _ := newManagerWithFactory(tmpDir, fakeInstanceFactory, newFakeGenerator(), newTestRegistry(tmpDir), agent.NewRegistry(), secretservice.NewRegistry(), secret.NewStore(tmpDir), gitDetector)
+		m, _ := newManagerWithFactory(tmpDir, fakeInstanceFactory, newFakeGenerator(), newTestRegistry(tmpDir), agent.NewRegistry(), secretservice.NewRegistry(), secret.NewStore(tmpDir), gitDetector, time.Now)
 		mgr := m.(*manager)
 
 		result := mgr.detectProject(context.Background(), repoRoot)

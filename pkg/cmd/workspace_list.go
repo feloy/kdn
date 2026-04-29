@@ -25,6 +25,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/fatih/color"
 	api "github.com/openkaiden/kdn-api/cli/go"
@@ -45,6 +46,30 @@ func truncateID(id string, n int) string {
 		return id
 	}
 	return id[:n]
+}
+
+// formatState returns a human-readable state string.
+// For running instances with a known start time it shows "running for X".
+func formatState(instance instances.Instance) string {
+	state := instance.GetRuntimeData().State
+	if state != api.WorkspaceStateRunning {
+		return string(state)
+	}
+	startedAt := instance.GetStartedAt()
+	if startedAt.IsZero() {
+		return string(state)
+	}
+	d := time.Since(startedAt)
+	switch {
+	case d < time.Minute:
+		return fmt.Sprintf("running for %ds", int(d.Seconds()))
+	case d < time.Hour:
+		return fmt.Sprintf("running for %dmin", int(d.Minutes()))
+	default:
+		h := int(d.Hours())
+		m := int(d.Minutes()) % 60
+		return fmt.Sprintf("running for %d:%02dh", h, m)
+	}
 }
 
 // compactPath replaces the home directory prefix with ~/
@@ -156,7 +181,7 @@ func (w *workspaceListCmd) displayTable(cmd *cobra.Command, instancesList []inst
 		sources := compactPath(instance.GetSourceDir())
 		agent := instance.GetAgent()
 		model := displayModelID(instance.GetModel())
-		state := instance.GetRuntimeData().State
+		state := formatState(instance)
 
 		tbl.AddRow(name, shortID, project, sources, agent, model, state)
 	}
