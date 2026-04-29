@@ -2965,13 +2965,14 @@ kdn init /tmp/workspace --runtime podman --agent claude
 
 ### `workspace list` - List All Registered Workspaces
 
-Lists all workspaces that have been registered with kdn. Also available as the shorter alias `list`.
+Lists all workspaces that have been registered with kdn. Also available as the shorter aliases `list` and `ls`.
 
 #### Usage
 
 ```bash
 kdn workspace list [flags]
 kdn list [flags]
+kdn ls [flags]
 ```
 
 #### Flags
@@ -2996,9 +2997,10 @@ The `AGENT` and `MODEL` columns are displayed separately. When no model is set, 
 
 The `STATE` column shows a human-readable duration for running workspaces: `running for Xs` (under 1 minute), `running for Xmin` (under 1 hour), or `running for H:MMh` (1 hour or more). Stopped, errored, or unknown workspaces show their state name directly.
 
-**Use the short alias:**
+**Use the short aliases:**
 ```bash
 kdn list
+kdn ls
 ```
 
 **List workspaces in JSON format:**

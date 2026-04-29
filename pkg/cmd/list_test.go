@@ -35,6 +35,10 @@ func TestListCmd(t *testing.T) {
 		t.Errorf("Expected Use to be 'list', got '%s'", cmd.Use)
 	}
 
+	if len(cmd.Aliases) != 1 || cmd.Aliases[0] != "ls" {
+		t.Errorf("Expected Aliases to be [ls], got %v", cmd.Aliases)
+	}
+
 	// Verify it includes the original workspace list Short description
 	workspaceListCmd := NewWorkspaceListCmd()
 	if !strings.Contains(cmd.Short, workspaceListCmd.Short) {
