@@ -20,6 +20,7 @@ package cmd
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"testing"
 
@@ -467,10 +468,11 @@ func (f *fakeAutoconfCmdUpdater) AddMount(_, _, _ string, _ bool) error { return
 // fakeAutoconfCmdVertexDetector satisfies autoconf.VertexDetector for cmd-level tests.
 type fakeAutoconfCmdVertexDetector struct {
 	cfg *autoconf.VertexConfig
+	err error
 }
 
 func (f *fakeAutoconfCmdVertexDetector) Detect() (*autoconf.VertexConfig, error) {
-	return f.cfg, nil
+	return f.cfg, f.err
 }
 
 // fakeAutoconfCmdAgentUpdater satisfies config.AgentConfigUpdater for cmd-level tests.
@@ -487,4 +489,167 @@ func (f *fakeAutoconfCmdAgentUpdater) AddEnvVar(agentName, name, value string) e
 func (f *fakeAutoconfCmdAgentUpdater) AddMount(agentName, host, target string, _ bool) error {
 	f.mounts = append(f.mounts, struct{ agentName, host, target string }{agentName, host, target})
 	return nil
+}
+
+// fakeAutoconfCmdFailingStore is a secret.Store whose Create always returns an error.
+type fakeAutoconfCmdFailingStore struct{}
+
+func (fakeAutoconfCmdFailingStore) Create(_ secret.CreateParams) error { return errors.New("store error") }
+func (fakeAutoconfCmdFailingStore) List() ([]secret.ListItem, error)   { return nil, nil }
+func (fakeAutoconfCmdFailingStore) Remove(_ string) error              { return nil }
+func (fakeAutoconfCmdFailingStore) Get(_ string) (secret.ListItem, string, error) {
+	return secret.ListItem{}, "", secret.ErrSecretNotFound
+}
+
+// fakeAutoconfCmdHomeConfigFilesDetector satisfies autoconf.HomeConfigFilesDetector.
+type fakeAutoconfCmdHomeConfigFilesDetector struct {
+	result []autoconf.DetectedHomeConfigFile
+	err    error
+}
+
+func (f *fakeAutoconfCmdHomeConfigFilesDetector) Detect() ([]autoconf.DetectedHomeConfigFile, error) {
+	return f.result, f.err
+}
+
+// TestAutoconfCmd_Run_SecretRunnerError verifies that run() propagates an error
+// returned by the secret autoconf runner.
+func TestAutoconfCmd_Run_SecretRunnerError(t *testing.T) {
+	t.Parallel()
+
+	c := &autoconfCmd{
+		yes: true,
+		detector: &fakeAutoconfCmdDetector{
+			result: autoconf.FilterResult{
+				NeedsAction: []autoconf.DetectedSecret{
+					{ServiceName: "github", EnvVarName: "GH_TOKEN", Value: "ghp_xyz"},
+				},
+			},
+		},
+		store:          fakeAutoconfCmdFailingStore{},
+		projectUpdater: &fakeAutoconfCmdUpdater{},
+		confirm:        func(string) (bool, error) { return true, nil },
+		selectTarget: func(_ string, _ []autoconf.ConfigTargetOption) (autoconf.ConfigTarget, error) {
+			return autoconf.ConfigTargetGlobal, nil
+		},
+	}
+
+	cmd := NewAutoconfCmd()
+	cmd.SetOut(&strings.Builder{})
+
+	if err := c.run(cmd, []string{}); err == nil {
+		t.Fatal("expected error from failing store, got nil")
+	}
+}
+
+// TestAutoconfCmd_Run_VertexRunnerError verifies that run() propagates an error
+// returned by the Vertex AI autoconf runner.
+func TestAutoconfCmd_Run_VertexRunnerError(t *testing.T) {
+	t.Parallel()
+
+	c := &autoconfCmd{
+		detector: &fakeAutoconfCmdDetector{},
+		confirm:  func(string) (bool, error) { return true, nil },
+		selectTarget: func(_ string, _ []autoconf.ConfigTargetOption) (autoconf.ConfigTarget, error) {
+			return autoconf.ConfigTargetGlobal, nil
+		},
+		vertexDetector: &fakeAutoconfCmdVertexDetector{
+			err: errors.New("vertex detect error"),
+		},
+		agentUpdater: &fakeAutoconfCmdAgentUpdater{},
+		yes:          true,
+		vertexSelectTarget: func(_ []autoconf.ClaudeVertexConfigTargetOption) (autoconf.ClaudeVertexConfigTarget, error) {
+			return autoconf.ClaudeVertexConfigTargetAgent, nil
+		},
+	}
+
+	cmd := NewAutoconfCmd()
+	cmd.SetOut(&strings.Builder{})
+
+	if err := c.run(cmd, []string{}); err == nil {
+		t.Fatal("expected error from failing vertex detector, got nil")
+	}
+}
+
+// TestAutoconfCmd_Run_WithHomeConfigFilesDetector verifies that when a
+// homeConfigFilesDetector is wired in, run() executes the home-config path.
+func TestAutoconfCmd_Run_WithHomeConfigFilesDetector(t *testing.T) {
+	t.Parallel()
+
+	c := &autoconfCmd{
+		detector: &fakeAutoconfCmdDetector{},
+		confirm:  func(string) (bool, error) { return true, nil },
+		selectTarget: func(_ string, _ []autoconf.ConfigTargetOption) (autoconf.ConfigTarget, error) {
+			return autoconf.ConfigTargetGlobal, nil
+		},
+		homeConfigFilesDetector: &fakeAutoconfCmdHomeConfigFilesDetector{},
+		homeConfigFilesSelectTarget: func(_ []autoconf.HomeConfigFilesConfigTargetOption) (autoconf.HomeConfigFilesConfigTarget, error) {
+			return autoconf.HomeConfigFilesConfigTargetLocal, nil
+		},
+		projectUpdater:   &fakeAutoconfCmdUpdater{},
+		workspaceUpdater: &fakeAutoconfCmdWorkspaceUpdater{},
+		yes:              true,
+	}
+
+	cmd := NewAutoconfCmd()
+	cmd.SetOut(&strings.Builder{})
+
+	if err := c.run(cmd, []string{}); err != nil {
+		t.Fatalf("run returned unexpected error: %v", err)
+	}
+}
+
+// TestAutoconfCmd_Run_HomeConfigRunnerError verifies that run() propagates an
+// error returned by the home-config autoconf runner.
+func TestAutoconfCmd_Run_HomeConfigRunnerError(t *testing.T) {
+	t.Parallel()
+
+	c := &autoconfCmd{
+		detector: &fakeAutoconfCmdDetector{},
+		confirm:  func(string) (bool, error) { return true, nil },
+		selectTarget: func(_ string, _ []autoconf.ConfigTargetOption) (autoconf.ConfigTarget, error) {
+			return autoconf.ConfigTargetGlobal, nil
+		},
+		homeConfigFilesDetector: &fakeAutoconfCmdHomeConfigFilesDetector{
+			err: errors.New("home config detect error"),
+		},
+		homeConfigFilesSelectTarget: func(_ []autoconf.HomeConfigFilesConfigTargetOption) (autoconf.HomeConfigFilesConfigTarget, error) {
+			return autoconf.HomeConfigFilesConfigTargetLocal, nil
+		},
+		projectUpdater:   &fakeAutoconfCmdUpdater{},
+		workspaceUpdater: &fakeAutoconfCmdWorkspaceUpdater{},
+		yes:              true,
+	}
+
+	cmd := NewAutoconfCmd()
+	cmd.SetOut(&strings.Builder{})
+
+	if err := c.run(cmd, []string{}); err == nil {
+		t.Fatal("expected error from failing home config detector, got nil")
+	}
+}
+
+// TestAutoconfCmd_Run_AlizerRunnerError verifies that run() propagates an error
+// returned by the alizer autoconf runner.
+func TestAutoconfCmd_Run_AlizerRunnerError(t *testing.T) {
+	t.Parallel()
+
+	c := &autoconfCmd{
+		detector: &fakeAutoconfCmdDetector{},
+		confirm:  func(string) (bool, error) { return true, nil },
+		selectTarget: func(_ string, _ []autoconf.ConfigTargetOption) (autoconf.ConfigTarget, error) {
+			return autoconf.ConfigTargetGlobal, nil
+		},
+		alizerDetector: &fakeAutoconfCmdAlizerDetector{
+			err: errors.New("alizer detect error"),
+		},
+		workspaceUpdater: &fakeAutoconfCmdWorkspaceUpdater{},
+		yes:              true,
+	}
+
+	cmd := NewAutoconfCmd()
+	cmd.SetOut(&strings.Builder{})
+
+	if err := c.run(cmd, []string{}); err == nil {
+		t.Fatal("expected error from failing alizer detector, got nil")
+	}
 }
