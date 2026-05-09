@@ -19,6 +19,7 @@
 package autoconf
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"sort"
@@ -33,11 +34,13 @@ import (
 //
 // Ruby is intentionally omitted: the ghcr.io/devcontainers/features/ruby feature
 // uses apt-get only and does not support dnf/yum.
+//
+// TypeScript is omitted: alizer reports TypeScript files as "JavaScript" (with
+// TypeScript as an alias), so the "JavaScript" entry covers both languages.
 var languageFeatureMap = map[string]string{
 	"Go":         "ghcr.io/devcontainers/features/go:1",
 	"Python":     "ghcr.io/devcontainers/features/python:1",
 	"JavaScript": "ghcr.io/devcontainers/features/node:2",
-	"TypeScript": "ghcr.io/devcontainers/features/node:2",
 	"Java":       "ghcr.io/devcontainers/features/java:1",
 }
 
@@ -102,7 +105,7 @@ func (r *alizerAutoconfRunner) Run(out io.Writer) error {
 		return nil
 	}
 
-	existingFeatures, existingPorts := r.loadExistingConfig()
+	existingFeatures, existingPorts := r.loadExistingConfig(out)
 
 	if err := r.processFeatures(out, result.Languages, existingFeatures); err != nil {
 		return err
@@ -111,9 +114,10 @@ func (r *alizerAutoconfRunner) Run(out io.Writer) error {
 }
 
 // loadExistingConfig reads the current workspace config and returns the set of
-// already-configured feature IDs and port numbers. Errors are silently ignored
-// so that a missing or malformed config file is treated as "nothing configured".
-func (r *alizerAutoconfRunner) loadExistingConfig() (map[string]bool, map[int]bool) {
+// already-configured feature IDs and port numbers. A missing config file is
+// treated as "nothing configured". Any other error is surfaced as a warning so
+// a malformed workspace.json does not silently produce unexpected behaviour.
+func (r *alizerAutoconfRunner) loadExistingConfig(out io.Writer) (map[string]bool, map[int]bool) {
 	featureSet := make(map[string]bool)
 	portSet := make(map[int]bool)
 
@@ -123,6 +127,9 @@ func (r *alizerAutoconfRunner) loadExistingConfig() (map[string]bool, map[int]bo
 
 	cfg, err := r.workspaceConfig.Load()
 	if err != nil {
+		if !errors.Is(err, config.ErrConfigNotFound) {
+			fmt.Fprintf(out, "warning: could not load workspace config: %v\n", err)
+		}
 		return featureSet, portSet
 	}
 

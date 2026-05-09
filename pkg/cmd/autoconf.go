@@ -282,17 +282,20 @@ func (a *autoconfCmd) run(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	if a.alizerDetector == nil {
-		return nil
+	if a.alizerDetector != nil {
+		alizerRunner := autoconf.NewAlizerAutoconf(autoconf.AlizerAutoconfOptions{
+			Detector:         a.alizerDetector,
+			WorkspaceUpdater: a.workspaceUpdater,
+			WorkspaceConfig:  a.workspaceCfg,
+			Yes:              a.yes,
+			Confirm:          a.confirm,
+		})
+		if err := alizerRunner.Run(out); err != nil {
+			return err
+		}
 	}
-	alizerRunner := autoconf.NewAlizerAutoconf(autoconf.AlizerAutoconfOptions{
-		Detector:         a.alizerDetector,
-		WorkspaceUpdater: a.workspaceUpdater,
-		WorkspaceConfig:  a.workspaceCfg,
-		Yes:              a.yes,
-		Confirm:          a.confirm,
-	})
-	return alizerRunner.Run(out)
+
+	return nil
 }
 
 // NewAutoconfCmd returns the autoconf command.
