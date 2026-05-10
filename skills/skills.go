@@ -41,7 +41,13 @@ var builtInFS embed.FS
 // New skills are picked up automatically when their directory is added under
 // skills/ and listed in the embed directive above.
 func ExtractAll(storageDir string) ([]string, error) {
-	entries, err := builtInFS.ReadDir(".")
+	return extractAll(builtInFS, storageDir)
+}
+
+// extractAll is the testable core of ExtractAll. It accepts any fs.FS so that
+// tests can inject custom file systems to exercise all code paths.
+func extractAll(srcFS fs.FS, storageDir string) ([]string, error) {
+	entries, err := fs.ReadDir(srcFS, ".")
 	if err != nil {
 		return nil, err
 	}
@@ -51,7 +57,7 @@ func ExtractAll(storageDir string) ([]string, error) {
 			continue
 		}
 		destDir := filepath.Join(storageDir, "skills", entry.Name())
-		if err := extractDir(builtInFS, entry.Name(), destDir); err != nil {
+		if err := extractDir(srcFS, entry.Name(), destDir); err != nil {
 			return nil, err
 		}
 		paths = append(paths, destDir)
@@ -59,7 +65,7 @@ func ExtractAll(storageDir string) ([]string, error) {
 	return paths, nil
 }
 
-func extractDir(src embed.FS, srcDir, destDir string) error {
+func extractDir(src fs.FS, srcDir, destDir string) error {
 	return fs.WalkDir(src, srcDir, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
@@ -72,7 +78,7 @@ func extractDir(src embed.FS, srcDir, destDir string) error {
 		if d.IsDir() {
 			return os.MkdirAll(dest, 0o755)
 		}
-		data, err := src.ReadFile(path)
+		data, err := fs.ReadFile(src, path)
 		if err != nil {
 			return err
 		}

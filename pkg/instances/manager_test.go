@@ -4186,6 +4186,32 @@ func TestManager_Add_InjectsBuiltInSkills(t *testing.T) {
 			t.Errorf("Expected no mounts when agent has empty SkillsDir, got %v", *params.WorkspaceConfig.Mounts)
 		}
 	})
+
+	t.Run("returns error when built-in skill extraction fails", func(t *testing.T) {
+		t.Parallel()
+
+		manager, _, storageDir := newManagerWithAgent(t, "$HOME/.claude/skills")
+
+		// Make the skills directory read-only so ExtractAll cannot create
+		// subdirectories inside it, forcing an error on Add().
+		skillsDir := filepath.Join(storageDir, "skills")
+		if err := os.MkdirAll(skillsDir, 0o755); err != nil {
+			t.Fatalf("failed to create skills dir: %v", err)
+		}
+		if err := os.Chmod(skillsDir, 0o555); err != nil {
+			t.Fatalf("failed to chmod skills dir: %v", err)
+		}
+		t.Cleanup(func() { _ = os.Chmod(skillsDir, 0o755) })
+
+		_, err := manager.Add(context.Background(), AddOptions{
+			Instance:    newInstance(t),
+			RuntimeType: "fake",
+			Agent:       "test-agent",
+		})
+		if err == nil {
+			t.Fatal("Add() expected error when built-in skill extraction fails, got nil")
+		}
+	})
 }
 
 func TestManager_Add_AppliesAgentMCPServers(t *testing.T) {
