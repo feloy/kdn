@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 	"testing"
@@ -4189,6 +4190,10 @@ func TestManager_Add_InjectsBuiltInSkills(t *testing.T) {
 
 	t.Run("returns error when built-in skill extraction fails", func(t *testing.T) {
 		t.Parallel()
+
+		if runtime.GOOS == "windows" {
+			t.Skip("chmod-based permission tests do not apply on Windows")
+		}
 
 		manager, _, storageDir := newManagerWithAgent(t, "$HOME/.claude/skills")
 

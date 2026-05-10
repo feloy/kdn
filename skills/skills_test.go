@@ -19,6 +19,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 	"testing/fstest"
 )
@@ -113,6 +114,10 @@ func TestExtractAll(t *testing.T) {
 
 	t.Run("returns error when destination is not writable", func(t *testing.T) {
 		t.Parallel()
+
+		if runtime.GOOS == "windows" {
+			t.Skip("chmod-based permission tests do not apply on Windows")
+		}
 
 		storageDir := t.TempDir()
 		skillsDir := filepath.Join(storageDir, "skills")
