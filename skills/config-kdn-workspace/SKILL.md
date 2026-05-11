@@ -43,8 +43,19 @@ kdn workspace configuration controls what gets injected into a workspace at runt
 - **MCP servers** — local (stdio) or remote (SSE) tool servers for the agent
 - **Network access** — allow-all or deny with an explicit host allowlist
 - **Secrets** — kdn secrets injected as HTTP headers via OneCLI (distinct from Podman secrets used in environment variable entries)
-- **Dev container features** — tools installed into the image at build time
+- **Dev container features** — tools installed into the image at build time (⚠️ **base image is Fedora**: verify feature compatibility before recommending; many features only support Debian/Ubuntu)
 - **Port forwarding** — workspace ports exposed on the host
+
+## Important: Base Image Compatibility
+
+⚠️ **The workspace base image is Fedora (Red Hat based).** When recommending dev container features:
+
+1. **Check feature compatibility first** — many features are Debian/Ubuntu only and will fail
+2. **Look for `dnf`/RPM support** in the feature's documentation or install script
+3. **Avoid features using `apt-get`** or Debian-specific commands
+4. **Prefer local features** (using `dnf`) when compatibility is uncertain
+
+This only affects **dev container features**. Other configuration types (mounts, environment variables, secrets, etc.) are not affected.
 
 ## Step 1: Choose the right configuration level
 
@@ -223,11 +234,27 @@ Then reference the secret by name in the `secrets` list of any config level:
 
 ### Dev container features
 
+⚠️ **CRITICAL: Feature Compatibility Check Required**
+
+The base image is **Fedora** (Red Hat based, uses `dnf`). **Many dev container features are designed for Debian/Ubuntu only** and will fail on Fedora. Before proposing any feature to the user:
+
+1. **Check the feature's documentation** to verify it supports Red Hat/Fedora/RPM-based systems
+2. **Look for `apt-get` or `apt` usage** in the feature's install script — these will NOT work on Fedora
+3. **Prefer features that explicitly support multiple distros** or are distro-agnostic
+4. **When in doubt, suggest a local feature** using `dnf` instead
+
+**Common compatible features** (verified to work on Fedora):
+- `ghcr.io/devcontainers/features/common-utils` — shell utilities, supports RPM
+- `ghcr.io/devcontainers/features/git` — git and git-lfs, supports RPM
+
+**Common INCOMPATIBLE features** (Debian/Ubuntu only):
+- Many language features may only support `apt-get`
+- Check each feature's GitHub repo before recommending
+
 ```json
 {
   "features": {
-    "ghcr.io/devcontainers/features/go:1": { "version": "1.23" },
-    "ghcr.io/devcontainers/features/node:1": { "version": "20" },
+    "ghcr.io/devcontainers/features/common-utils:1": {},
     "./tools/my-local-feature": {}
   }
 }
@@ -236,6 +263,75 @@ Then reference the secret by name in the `secrets` list of any config level:
 Features are installed into the image at **build time** (`kdn init`), not at runtime. Adding or changing features requires re-registering the workspace. Use `{}` to accept all defaults.
 
 Rules: IDs must be OCI references or relative paths (`./…`). `https://` tarball URIs are not supported. Local paths are resolved relative to `.kaiden/`.
+
+#### Local features
+
+**Recommended approach for Fedora compatibility:** Since many public dev container features only support Debian/Ubuntu, creating local features using `dnf` is often the most reliable way to install tools.
+
+Local features should be placed in the `.kaiden/` directory (or a subdirectory) and referenced with a relative path starting with `./`:
+
+**Directory structure example:**
+
+```text
+.kaiden/
+  workspace.json
+  features/
+    custom-tools/
+      devcontainer-feature.json
+      install.sh
+```
+
+**Feature reference in workspace.json:**
+
+```json
+{
+  "features": {
+    "./features/custom-tools": {}
+  }
+}
+```
+
+**Feature metadata** (`.kaiden/features/custom-tools/devcontainer-feature.json`):
+
+```json
+{
+  "id": "custom-tools",
+  "version": "1.0.0",
+  "name": "Custom Tools",
+  "description": "Installs project-specific tools",
+  "options": {
+    "version": {
+      "type": "string",
+      "default": "latest",
+      "description": "Version to install"
+    }
+  }
+}
+```
+
+**Install script** (`.kaiden/features/custom-tools/install.sh`):
+
+```bash
+#!/bin/bash
+set -e
+
+# The base image is Fedora, so use dnf for package installation
+dnf install -y jq wget curl
+
+# Install other tools as needed
+# Options are available as environment variables (uppercase with underscores)
+echo "Installing version: ${VERSION}"
+```
+
+**Important notes for local features:**
+- The base image is **Fedora**, so use `dnf` for package management (not `apt`, `yum`, or `apk`)
+- Features run as **root** during image build, but the `agent` user and `/home/agent/` already exist
+- Environment variables are available to install scripts:
+  - `_REMOTE_USER=agent` — the container user
+  - `_REMOTE_USER_HOME=/home/agent` — the user's home directory
+  - Option values from `devcontainer-feature.json` (uppercased, non-alphanumeric → `_`)
+- Install scripts must be executable (`chmod +x install.sh`)
+- Use `set -e` to fail fast on errors
 
 ---
 
@@ -392,19 +488,45 @@ Add to `.kaiden/workspace.json`:
 }
 ```
 
-### Add a dev container feature (Go toolchain)
+### Add a dev container feature (verified Fedora-compatible)
 
-Add to `.kaiden/workspace.json`:
+⚠️ **Always verify feature compatibility with Fedora before recommending.** Check the feature's documentation or install script for RPM/dnf support.
+
+If the feature is compatible, add to `.kaiden/workspace.json`:
 
 ```json
 {
   "features": {
-    "ghcr.io/devcontainers/features/go:1": { "version": "1.23" }
+    "ghcr.io/devcontainers/features/common-utils:1": {}
   }
 }
 ```
 
 Then re-register on the host: `kdn workspace remove -f <name> && kdn init <dir> --runtime podman --agent <agent>`
+
+**If unsure about compatibility, suggest a local feature instead** (see next example).
+
+### Add a local dev container feature (custom tools)
+
+Create the feature directory structure in `.kaiden/features/project-tools/` with a `devcontainer-feature.json` and `install.sh`. The install script should use `dnf` for packages (base image is Fedora):
+
+```bash
+#!/bin/bash
+set -e
+dnf install -y ripgrep fd-find
+```
+
+Then reference it in `.kaiden/workspace.json`:
+
+```json
+{
+  "features": {
+    "./features/project-tools": {}
+  }
+}
+```
+
+Re-register to apply: `kdn workspace remove -f <name> && kdn init <dir> --runtime podman --agent <agent>`
 
 ---
 
