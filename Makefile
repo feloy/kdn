@@ -38,7 +38,7 @@ help: ## Display this help message
 build: ## Build the kdn binary
 build:
 	@echo "Building $(BINARY_NAME)$(BINARY_EXT)..."
-	$(GO) build -o $(BUILD_DIR)/$(BINARY_NAME)$(BINARY_EXT) ./cmd/kdn
+	$(GO) build -ldflags "-s -w" -o $(BUILD_DIR)/$(BINARY_NAME)$(BINARY_EXT) ./cmd/kdn
 
 install: ## Install the binary to GOPATH/bin
 	@echo "Installing $(BINARY_NAME)..."
