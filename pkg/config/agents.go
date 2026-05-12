@@ -15,7 +15,6 @@
 package config
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -69,7 +68,7 @@ func NewAgentConfigUpdater(storageDir string) (AgentConfigUpdater, error) {
 func (a *agentConfigUpdater) AddEnvVar(agentName, name, value string) error {
 	configPath := filepath.Join(a.storageDir, "config", AgentsConfigFile)
 
-	agentsConfig, err := a.readAgentsFile(configPath)
+	agentsConfig, schemaURL, err := a.readAgentsFile(configPath)
 	if err != nil {
 		return err
 	}
@@ -87,7 +86,7 @@ func (a *agentConfigUpdater) AddEnvVar(agentName, name, value string) error {
 				(*cfg.Environment)[i].Value = &v
 				(*cfg.Environment)[i].Secret = nil
 				agentsConfig[agentName] = cfg
-				return a.writeAgentsFile(configPath, agentsConfig)
+				return a.writeAgentsFile(configPath, agentsConfig, schemaURL)
 			}
 		}
 		v := value
@@ -95,13 +94,13 @@ func (a *agentConfigUpdater) AddEnvVar(agentName, name, value string) error {
 	}
 
 	agentsConfig[agentName] = cfg
-	return a.writeAgentsFile(configPath, agentsConfig)
+	return a.writeAgentsFile(configPath, agentsConfig, schemaURL)
 }
 
 func (a *agentConfigUpdater) AddMount(agentName, host, target string, ro bool) error {
 	configPath := filepath.Join(a.storageDir, "config", AgentsConfigFile)
 
-	agentsConfig, err := a.readAgentsFile(configPath)
+	agentsConfig, schemaURL, err := a.readAgentsFile(configPath)
 	if err != nil {
 		return err
 	}
@@ -123,31 +122,33 @@ func (a *agentConfigUpdater) AddMount(agentName, host, target string, ro bool) e
 	}
 
 	agentsConfig[agentName] = cfg
-	return a.writeAgentsFile(configPath, agentsConfig)
+	return a.writeAgentsFile(configPath, agentsConfig, schemaURL)
 }
 
-func (a *agentConfigUpdater) readAgentsFile(configPath string) (map[string]workspace.WorkspaceConfiguration, error) {
+// readAgentsFile reads agents.json and returns the config map, the preserved
+// "$schema" URL (AgentsSchemaURL when the file is newly created), and any error.
+func (a *agentConfigUpdater) readAgentsFile(configPath string) (map[string]workspace.WorkspaceConfiguration, string, error) {
 	data, err := os.ReadFile(configPath)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return make(map[string]workspace.WorkspaceConfiguration), nil
+			return make(map[string]workspace.WorkspaceConfiguration), AgentsSchemaURL, nil
 		}
-		return nil, fmt.Errorf("failed to read agents config: %w", err)
+		return nil, "", fmt.Errorf("failed to read agents config: %w", err)
 	}
 
-	var agentsConfig map[string]workspace.WorkspaceConfiguration
-	if err := json.Unmarshal(data, &agentsConfig); err != nil {
-		return nil, fmt.Errorf("failed to parse agents config: %w", err)
+	agentsConfig, schemaURL, err := parseWorkspaceConfigMap(data)
+	if err != nil {
+		return nil, "", fmt.Errorf("failed to parse agents config: %w", err)
 	}
-	return agentsConfig, nil
+	return agentsConfig, schemaURL, nil
 }
 
-func (a *agentConfigUpdater) writeAgentsFile(configPath string, agentsConfig map[string]workspace.WorkspaceConfiguration) error {
+func (a *agentConfigUpdater) writeAgentsFile(configPath string, agentsConfig map[string]workspace.WorkspaceConfiguration, schemaURL string) error {
 	if err := os.MkdirAll(filepath.Dir(configPath), 0700); err != nil {
 		return fmt.Errorf("failed to create config directory: %w", err)
 	}
 
-	data, err := json.MarshalIndent(agentsConfig, "", "  ")
+	data, err := marshalWorkspaceConfigMap(agentsConfig, schemaURL)
 	if err != nil {
 		return fmt.Errorf("failed to marshal agents config: %w", err)
 	}
@@ -209,9 +210,9 @@ func (a *agentConfigLoader) Load(agentName string) (*workspace.WorkspaceConfigur
 		return nil, err
 	}
 
-	// Parse the JSON
-	var agentsConfig map[string]workspace.WorkspaceConfiguration
-	if err := json.Unmarshal(data, &agentsConfig); err != nil {
+	// Parse the JSON (handles optional "$schema" key alongside agent entries).
+	agentsConfig, _, err := parseWorkspaceConfigMap(data)
+	if err != nil {
 		return nil, fmt.Errorf("%w: failed to parse agents.json: %v", ErrInvalidAgentConfig, err)
 	}
 

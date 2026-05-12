@@ -19,7 +19,6 @@
 package config
 
 import (
-	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -66,7 +65,7 @@ func NewProjectConfigUpdater(storageDir string) (ProjectConfigUpdater, error) {
 func (p *projectConfigUpdater) AddSecret(projectID string, secretName string) error {
 	configPath := filepath.Join(p.storageDir, "config", ProjectsConfigFile)
 
-	projectsConfig, err := p.readProjectsFile(configPath)
+	projectsConfig, schemaURL, err := p.readProjectsFile(configPath)
 	if err != nil {
 		return err
 	}
@@ -87,7 +86,7 @@ func (p *projectConfigUpdater) AddSecret(projectID string, secretName string) er
 
 	projectsConfig[projectID] = cfg
 
-	return p.writeProjectsFile(configPath, projectsConfig)
+	return p.writeProjectsFile(configPath, projectsConfig, schemaURL)
 }
 
 // AddMount reads projects.json, adds a mount entry for projectID, and writes the file back.
@@ -95,7 +94,7 @@ func (p *projectConfigUpdater) AddSecret(projectID string, secretName string) er
 func (p *projectConfigUpdater) AddMount(projectID, host, target string, ro bool) error {
 	configPath := filepath.Join(p.storageDir, "config", ProjectsConfigFile)
 
-	projectsConfig, err := p.readProjectsFile(configPath)
+	projectsConfig, schemaURL, err := p.readProjectsFile(configPath)
 	if err != nil {
 		return err
 	}
@@ -118,31 +117,33 @@ func (p *projectConfigUpdater) AddMount(projectID, host, target string, ro bool)
 
 	projectsConfig[projectID] = cfg
 
-	return p.writeProjectsFile(configPath, projectsConfig)
+	return p.writeProjectsFile(configPath, projectsConfig, schemaURL)
 }
 
-func (p *projectConfigUpdater) readProjectsFile(configPath string) (map[string]workspace.WorkspaceConfiguration, error) {
+// readProjectsFile reads projects.json and returns the config map, the preserved
+// "$schema" URL (ProjectsSchemaURL when the file is newly created), and any error.
+func (p *projectConfigUpdater) readProjectsFile(configPath string) (map[string]workspace.WorkspaceConfiguration, string, error) {
 	data, err := os.ReadFile(configPath)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return make(map[string]workspace.WorkspaceConfiguration), nil
+			return make(map[string]workspace.WorkspaceConfiguration), ProjectsSchemaURL, nil
 		}
-		return nil, fmt.Errorf("failed to read projects config: %w", err)
+		return nil, "", fmt.Errorf("failed to read projects config: %w", err)
 	}
 
-	var projectsConfig map[string]workspace.WorkspaceConfiguration
-	if err := json.Unmarshal(data, &projectsConfig); err != nil {
-		return nil, fmt.Errorf("failed to parse projects config: %w", err)
+	projectsConfig, schemaURL, err := parseWorkspaceConfigMap(data)
+	if err != nil {
+		return nil, "", fmt.Errorf("failed to parse projects config: %w", err)
 	}
-	return projectsConfig, nil
+	return projectsConfig, schemaURL, nil
 }
 
-func (p *projectConfigUpdater) writeProjectsFile(configPath string, projectsConfig map[string]workspace.WorkspaceConfiguration) error {
+func (p *projectConfigUpdater) writeProjectsFile(configPath string, projectsConfig map[string]workspace.WorkspaceConfiguration, schemaURL string) error {
 	if err := os.MkdirAll(filepath.Dir(configPath), 0700); err != nil {
 		return fmt.Errorf("failed to create config directory: %w", err)
 	}
 
-	data, err := json.MarshalIndent(projectsConfig, "", "  ")
+	data, err := marshalWorkspaceConfigMap(projectsConfig, schemaURL)
 	if err != nil {
 		return fmt.Errorf("failed to marshal projects config: %w", err)
 	}

@@ -15,6 +15,7 @@
 package config
 
 import (
+	"encoding/json"
 	"errors"
 	"os"
 	"path/filepath"
@@ -497,4 +498,74 @@ func TestAgentConfigUpdater_AddMount(t *testing.T) {
 			t.Errorf("expected 1 mount after duplicate, got %d", len(*cfg.Mounts))
 		}
 	})
+}
+
+// TestAgentConfigUpdater_Schema_AddedOnCreation verifies that $schema is written
+// when agents.json is created for the first time.
+func TestAgentConfigUpdater_Schema_AddedOnCreation(t *testing.T) {
+	t.Parallel()
+
+	u, _ := NewAgentConfigUpdater(t.TempDir())
+	if err := u.AddEnvVar("claude", "MY_VAR", "hello"); err != nil {
+		t.Fatalf("AddEnvVar: %v", err)
+	}
+
+	storageDir := u.(*agentConfigUpdater).storageDir
+	data, err := os.ReadFile(filepath.Join(storageDir, "config", AgentsConfigFile))
+	if err != nil {
+		t.Fatalf("reading file: %v", err)
+	}
+	var raw map[string]json.RawMessage
+	if err := json.Unmarshal(data, &raw); err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	var schemaURL string
+	if err := json.Unmarshal(raw["$schema"], &schemaURL); err != nil {
+		t.Fatalf("$schema missing or not a string: %v", err)
+	}
+	if schemaURL != AgentsSchemaURL {
+		t.Errorf("expected %q, got %q", AgentsSchemaURL, schemaURL)
+	}
+}
+
+// TestAgentConfigUpdater_Schema_PreservedOnUpdate verifies that $schema survives
+// subsequent writes and is NOT added to files that were created without it.
+func TestAgentConfigUpdater_Schema_PreservedOnUpdate(t *testing.T) {
+	t.Parallel()
+
+	// File created by kdn: $schema must survive a second write.
+	u, _ := NewAgentConfigUpdater(t.TempDir())
+	if err := u.AddEnvVar("claude", "A", "1"); err != nil {
+		t.Fatalf("AddEnvVar A: %v", err)
+	}
+	if err := u.AddEnvVar("claude", "B", "2"); err != nil {
+		t.Fatalf("AddEnvVar B: %v", err)
+	}
+
+	storageDir := u.(*agentConfigUpdater).storageDir
+	data, _ := os.ReadFile(filepath.Join(storageDir, "config", AgentsConfigFile))
+	var raw map[string]json.RawMessage
+	_ = json.Unmarshal(data, &raw)
+	if _, ok := raw["$schema"]; !ok {
+		t.Error("$schema must be preserved after subsequent writes")
+	}
+
+	// Pre-existing file without $schema: must NOT gain $schema on update.
+	dir2 := t.TempDir()
+	configDir2 := filepath.Join(dir2, "config")
+	_ = os.MkdirAll(configDir2, 0700)
+	existing := []byte(`{"claude":{"environment":[{"name":"X","value":"1"}]}}`)
+	_ = os.WriteFile(filepath.Join(configDir2, AgentsConfigFile), existing, 0600)
+
+	u2, _ := NewAgentConfigUpdater(dir2)
+	if err := u2.AddEnvVar("claude", "Y", "2"); err != nil {
+		t.Fatalf("AddEnvVar on pre-existing: %v", err)
+	}
+
+	data2, _ := os.ReadFile(filepath.Join(dir2, "config", AgentsConfigFile))
+	var raw2 map[string]json.RawMessage
+	_ = json.Unmarshal(data2, &raw2)
+	if _, ok := raw2["$schema"]; ok {
+		t.Error("$schema must not be added to a pre-existing file")
+	}
 }

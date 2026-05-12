@@ -177,7 +177,7 @@ func TestReadProjectsFile_NonExistError(t *testing.T) {
 	}
 
 	p := &projectConfigUpdater{storageDir: dir}
-	_, err := p.readProjectsFile(configPath)
+	_, _, err := p.readProjectsFile(configPath)
 	if err == nil {
 		t.Error("expected error for directory-as-file, got nil")
 	}
@@ -198,7 +198,7 @@ func TestReadProjectsFile_InvalidJSON(t *testing.T) {
 	}
 
 	p := &projectConfigUpdater{storageDir: dir}
-	_, err := p.readProjectsFile(configPath)
+	_, _, err := p.readProjectsFile(configPath)
 	if err == nil {
 		t.Error("expected error for invalid JSON, got nil")
 	}
@@ -217,7 +217,7 @@ func TestWriteProjectsFile_MkdirAllFails(t *testing.T) {
 
 	p := &projectConfigUpdater{storageDir: dir}
 	configPath := filepath.Join(dir, "config", ProjectsConfigFile)
-	err := p.writeProjectsFile(configPath, map[string]workspace.WorkspaceConfiguration{})
+	err := p.writeProjectsFile(configPath, map[string]workspace.WorkspaceConfiguration{}, "")
 	if err == nil {
 		t.Error("expected error when config path is a file, got nil")
 	}
@@ -248,9 +248,80 @@ func TestWriteProjectsFile_WriteFileFails(t *testing.T) {
 
 	p := &projectConfigUpdater{storageDir: dir}
 	configPath := filepath.Join(configDir, ProjectsConfigFile)
-	err := p.writeProjectsFile(configPath, map[string]workspace.WorkspaceConfiguration{})
+	err := p.writeProjectsFile(configPath, map[string]workspace.WorkspaceConfiguration{}, "")
 	if err == nil {
 		t.Error("expected error writing to read-only directory, got nil")
+	}
+}
+
+// TestProjectsUpdater_Schema_AddedOnCreation verifies that $schema is written
+// when projects.json is created for the first time.
+func TestProjectsUpdater_Schema_AddedOnCreation(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	updater, _ := NewProjectConfigUpdater(dir)
+	if err := updater.AddSecret("", "anthropic"); err != nil {
+		t.Fatalf("AddSecret: %v", err)
+	}
+
+	data, err := os.ReadFile(filepath.Join(dir, "config", ProjectsConfigFile))
+	if err != nil {
+		t.Fatalf("reading file: %v", err)
+	}
+	var raw map[string]json.RawMessage
+	if err := json.Unmarshal(data, &raw); err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	var schemaURL string
+	if err := json.Unmarshal(raw["$schema"], &schemaURL); err != nil {
+		t.Fatalf("$schema missing or not a string: %v", err)
+	}
+	if schemaURL != ProjectsSchemaURL {
+		t.Errorf("expected %q, got %q", ProjectsSchemaURL, schemaURL)
+	}
+}
+
+// TestProjectsUpdater_Schema_PreservedOnUpdate verifies that $schema survives
+// subsequent writes and is NOT added to files that were created without it.
+func TestProjectsUpdater_Schema_PreservedOnUpdate(t *testing.T) {
+	t.Parallel()
+
+	// File created by kdn: $schema must survive a second write.
+	dir := t.TempDir()
+	updater, _ := NewProjectConfigUpdater(dir)
+	if err := updater.AddSecret("", "first"); err != nil {
+		t.Fatalf("AddSecret first: %v", err)
+	}
+	if err := updater.AddSecret("", "second"); err != nil {
+		t.Fatalf("AddSecret second: %v", err)
+	}
+
+	data, _ := os.ReadFile(filepath.Join(dir, "config", ProjectsConfigFile))
+	var raw map[string]json.RawMessage
+	_ = json.Unmarshal(data, &raw)
+	if _, ok := raw["$schema"]; !ok {
+		t.Error("$schema must be preserved after subsequent writes")
+	}
+
+	// Pre-existing file without $schema: must NOT gain $schema on update.
+	dir2 := t.TempDir()
+	configDir2 := filepath.Join(dir2, "config")
+	_ = os.MkdirAll(configDir2, 0700)
+	existing := map[string]workspace.WorkspaceConfiguration{"": {}}
+	existingData, _ := json.MarshalIndent(existing, "", "  ")
+	_ = os.WriteFile(filepath.Join(configDir2, ProjectsConfigFile), existingData, 0600)
+
+	updater2, _ := NewProjectConfigUpdater(dir2)
+	if err := updater2.AddSecret("", "anthropic"); err != nil {
+		t.Fatalf("AddSecret on pre-existing: %v", err)
+	}
+
+	data2, _ := os.ReadFile(filepath.Join(dir2, "config", ProjectsConfigFile))
+	var raw2 map[string]json.RawMessage
+	_ = json.Unmarshal(data2, &raw2)
+	if _, ok := raw2["$schema"]; ok {
+		t.Error("$schema must not be added to a pre-existing file")
 	}
 }
 
@@ -361,7 +432,8 @@ func TestAddMount_ReadError(t *testing.T) {
 	}
 }
 
-// readProjectsFile is a test helper that reads and parses the projects.json file.
+// readProjectsFile is a test helper that reads and parses the projects.json file,
+// filtering out the "$schema" key so callers only see workspace configuration entries.
 func readProjectsFile(t *testing.T, storageDir string) map[string]workspace.WorkspaceConfiguration {
 	t.Helper()
 	path := filepath.Join(storageDir, "config", ProjectsConfigFile)
@@ -369,8 +441,8 @@ func readProjectsFile(t *testing.T, storageDir string) map[string]workspace.Work
 	if err != nil {
 		t.Fatalf("read projects file: %v", err)
 	}
-	var cfg map[string]workspace.WorkspaceConfiguration
-	if err := json.Unmarshal(data, &cfg); err != nil {
+	cfg, _, err := parseWorkspaceConfigMap(data)
+	if err != nil {
 		t.Fatalf("parse projects file: %v", err)
 	}
 	return cfg

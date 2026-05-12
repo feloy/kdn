@@ -15,7 +15,6 @@
 package config
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -86,9 +85,9 @@ func (p *projectConfigLoader) Load(projectID string) (*workspace.WorkspaceConfig
 		return nil, err
 	}
 
-	// Parse the JSON
-	var projectsConfig map[string]workspace.WorkspaceConfiguration
-	if err := json.Unmarshal(data, &projectsConfig); err != nil {
+	// Parse the JSON (handles optional "$schema" key alongside project entries).
+	projectsConfig, _, err := parseWorkspaceConfigMap(data)
+	if err != nil {
 		return nil, fmt.Errorf("%w: failed to parse projects.json: %v", ErrInvalidProjectConfig, err)
 	}
 

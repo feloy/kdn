@@ -564,6 +564,22 @@ All markdown files (*.md) in this repository must follow these standards:
 - `text` - Plain text output, error messages, or generic content
 - `markdown` - Markdown examples
 
+## JSON Schemas
+
+JSON Schemas (Draft-07) for the configuration files are stored in `schemas/`:
+
+| File | Describes |
+|------|-----------|
+| `schemas/workspace.json` | `.kaiden/workspace.json` (per-workspace config) |
+| `schemas/agents.json` | `~/.kdn/config/agents.json` (per-agent overrides) |
+| `schemas/projects.json` | `~/.kdn/config/projects.json` (per-project overrides) |
+
+All three files are self-contained (no cross-file `$ref`) so editors and validators can use them without a resolver. They are published automatically to each GitHub release via the `extra_files` entry in `.goreleaser.yaml`.
+
+**Keep schemas in sync with the config model.** When `WorkspaceConfiguration` or any of its sub-types change in `kdn-api`, update all three schema files to match.
+
+**For the full kdn-api update workflow (bumping, merger, schemas, CLI types), use:** `/working-with-kdn-api`
+
 ## Copyright Headers
 
 All source files must include Apache License 2.0 copyright headers with Red Hat copyright. Use the `/copyright-headers` skill to add or update headers automatically. The current year is 2026.

@@ -1806,6 +1806,13 @@ By default, workspace configuration is stored at:
 
 The configuration directory (containing `workspace.json`) can be customized using the `--workspace-configuration` flag when registering a workspace with `init`. The flag accepts a directory path, not the file path itself.
 
+A JSON Schema for `workspace.json` is published with each release and can be used for editor validation and auto-completion:
+```text
+https://github.com/openkaiden/kdn/releases/latest/download/workspace.json
+```
+
+When kdn creates `workspace.json` for the first time, it automatically adds a `"$schema"` entry pointing to this URL so editors (VS Code, JetBrains, etc.) pick up validation immediately.
+
 ### Configuration Structure
 
 The `workspace.json` file uses a nested JSON structure:
@@ -2403,6 +2410,14 @@ The storage directory contains:
 - `config/agents.json` - Agent-specific environment variables and mounts
 - `config/projects.json` - Project-specific and global environment variables and mounts
 - `config/<agent>/` - Agent default settings files (e.g., `config/claude/.claude.json`)
+
+JSON Schemas for `agents.json` and `projects.json` are published with each release:
+```text
+https://github.com/openkaiden/kdn/releases/latest/download/agents.json
+https://github.com/openkaiden/kdn/releases/latest/download/projects.json
+```
+
+When kdn creates either file for the first time, it automatically adds a `"$schema"` entry so editors pick up validation immediately.
 
 ### Agent Configuration File
 

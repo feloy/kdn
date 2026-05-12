@@ -76,6 +76,8 @@ release:
   github:
     owner: openkaiden
     name: kdn
+  extra_files:
+    - glob: schemas/*.json
   footer: |
 
     ---

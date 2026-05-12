@@ -28,6 +28,14 @@ import (
 	workspace "github.com/openkaiden/kdn-api/workspace-configuration/go"
 )
 
+// workspaceConfigFile is the on-disk representation of workspace.json. Embedding
+// workspace.WorkspaceConfiguration promotes all its fields so callers can access
+// them directly, while Schema carries the optional JSON Schema URL.
+type workspaceConfigFile struct {
+	Schema string `json:"$schema,omitempty"`
+	workspace.WorkspaceConfiguration
+}
+
 // WorkspaceConfigUpdater manages the local workspace configuration file.
 type WorkspaceConfigUpdater interface {
 	// AddSecret appends secretName to the Secrets list of the workspace config,
@@ -75,7 +83,7 @@ func NewWorkspaceConfigUpdater(configDir string) (WorkspaceConfigUpdater, error)
 func (w *workspaceConfigUpdater) AddEnvVar(name, value string) error {
 	configPath := filepath.Join(w.configDir, WorkspaceConfigFile)
 
-	cfg, err := w.readConfig(configPath)
+	cfg, isNew, err := w.readConfig(configPath)
 	if err != nil {
 		return err
 	}
@@ -90,20 +98,20 @@ func (w *workspaceConfigUpdater) AddEnvVar(name, value string) error {
 				v := value
 				(*cfg.Environment)[i].Value = &v
 				(*cfg.Environment)[i].Secret = nil
-				return w.writeConfig(configPath, cfg)
+				return w.writeConfig(configPath, cfg, isNew)
 			}
 		}
 		v := value
 		*cfg.Environment = append(*cfg.Environment, workspace.EnvironmentVariable{Name: name, Value: &v})
 	}
 
-	return w.writeConfig(configPath, cfg)
+	return w.writeConfig(configPath, cfg, isNew)
 }
 
 func (w *workspaceConfigUpdater) AddMount(host, target string, ro bool) error {
 	configPath := filepath.Join(w.configDir, WorkspaceConfigFile)
 
-	cfg, err := w.readConfig(configPath)
+	cfg, isNew, err := w.readConfig(configPath)
 	if err != nil {
 		return err
 	}
@@ -122,13 +130,13 @@ func (w *workspaceConfigUpdater) AddMount(host, target string, ro bool) error {
 		*cfg.Mounts = append(*cfg.Mounts, workspace.Mount{Host: host, Target: target, Ro: &roVal})
 	}
 
-	return w.writeConfig(configPath, cfg)
+	return w.writeConfig(configPath, cfg, isNew)
 }
 
 func (w *workspaceConfigUpdater) AddSecret(secretName string) error {
 	configPath := filepath.Join(w.configDir, WorkspaceConfigFile)
 
-	cfg, err := w.readConfig(configPath)
+	cfg, isNew, err := w.readConfig(configPath)
 	if err != nil {
 		return err
 	}
@@ -145,33 +153,33 @@ func (w *workspaceConfigUpdater) AddSecret(secretName string) error {
 		*cfg.Secrets = append(*cfg.Secrets, secretName)
 	}
 
-	return w.writeConfig(configPath, cfg)
+	return w.writeConfig(configPath, cfg, isNew)
 }
 
-func (w *workspaceConfigUpdater) readConfig(configPath string) (*workspace.WorkspaceConfiguration, error) {
+func (w *workspaceConfigUpdater) readConfig(configPath string) (*workspaceConfigFile, bool, error) {
 	data, err := os.ReadFile(configPath)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return &workspace.WorkspaceConfiguration{}, nil
+			return &workspaceConfigFile{}, true, nil
 		}
-		return nil, fmt.Errorf("failed to read workspace config: %w", err)
+		return nil, false, fmt.Errorf("failed to read workspace config: %w", err)
 	}
 
 	if len(bytes.TrimSpace(data)) == 0 {
-		return &workspace.WorkspaceConfiguration{}, nil
+		return &workspaceConfigFile{}, false, nil
 	}
 
-	var cfg workspace.WorkspaceConfiguration
+	var cfg workspaceConfigFile
 	if err := json.Unmarshal(data, &cfg); err != nil {
-		return nil, fmt.Errorf("failed to parse workspace config: %w", err)
+		return nil, false, fmt.Errorf("failed to parse workspace config: %w", err)
 	}
-	return &cfg, nil
+	return &cfg, false, nil
 }
 
 func (w *workspaceConfigUpdater) AddPort(port int) error {
 	configPath := filepath.Join(w.configDir, WorkspaceConfigFile)
 
-	cfg, err := w.readConfig(configPath)
+	cfg, isNew, err := w.readConfig(configPath)
 	if err != nil {
 		return err
 	}
@@ -188,13 +196,13 @@ func (w *workspaceConfigUpdater) AddPort(port int) error {
 		*cfg.Ports = append(*cfg.Ports, port)
 	}
 
-	return w.writeConfig(configPath, cfg)
+	return w.writeConfig(configPath, cfg, isNew)
 }
 
 func (w *workspaceConfigUpdater) AddFeature(featureID string, options map[string]interface{}) error {
 	configPath := filepath.Join(w.configDir, WorkspaceConfigFile)
 
-	cfg, err := w.readConfig(configPath)
+	cfg, isNew, err := w.readConfig(configPath)
 	if err != nil {
 		return err
 	}
@@ -209,10 +217,14 @@ func (w *workspaceConfigUpdater) AddFeature(featureID string, options map[string
 		(*cfg.Features)[featureID] = options
 	}
 
-	return w.writeConfig(configPath, cfg)
+	return w.writeConfig(configPath, cfg, isNew)
 }
 
-func (w *workspaceConfigUpdater) writeConfig(configPath string, cfg *workspace.WorkspaceConfiguration) error {
+func (w *workspaceConfigUpdater) writeConfig(configPath string, cfg *workspaceConfigFile, isNew bool) error {
+	if isNew {
+		cfg.Schema = WorkspaceSchemaURL
+	}
+
 	if err := os.MkdirAll(filepath.Dir(configPath), 0700); err != nil {
 		return fmt.Errorf("failed to create config directory: %w", err)
 	}

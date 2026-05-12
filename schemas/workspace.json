@@ -1,0 +1,169 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Workspace Configuration",
+  "$ref": "#/$defs/WorkspaceConfiguration",
+  "$defs": {
+    "WorkspaceConfiguration": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "mounts": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/Mount" },
+          "description": "List of directories to mount in the workspace. Supports $SOURCES (workspace sources directory) and $HOME (user home directory) variables."
+        },
+        "environment": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/EnvironmentVariable" }
+        },
+        "skills": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "List of folders containing skills (SKILL.md and related files) to be provided to the agent."
+        },
+        "mcp": { "$ref": "#/$defs/McpConfiguration" },
+        "network": { "$ref": "#/$defs/NetworkConfiguration" },
+        "ports": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 65535
+          },
+          "description": "List of TCP ports to expose from the workspace."
+        },
+        "secrets": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "List of secret names to inject into the workspace."
+        },
+        "features": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "description": "Features to add to the workspace, compatible with devcontainers features (https://containers.dev/implementors/features/). Keys are feature identifiers (e.g. OCI image references), values are feature-specific options."
+        }
+      }
+    },
+    "NetworkConfiguration": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "mode": {
+          "type": "string",
+          "enum": ["allow", "deny"],
+          "default": "deny",
+          "description": "Network access mode. 'allow' permits all. 'deny' blocks everything except the specified hosts/CIDRs. Defaults to 'deny'."
+        },
+        "hosts": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "List of hostnames to allow in deny mode."
+        }
+      }
+    },
+    "McpConfiguration": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "servers": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/McpServer" },
+          "description": "List of URL-based MCP servers."
+        },
+        "commands": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/McpCommand" },
+          "description": "List of command-based MCP servers."
+        }
+      }
+    },
+    "McpServer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "url"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Name of the MCP server."
+        },
+        "url": {
+          "type": "string",
+          "description": "URL of the MCP server."
+        },
+        "headers": {
+          "type": "object",
+          "additionalProperties": { "type": "string" },
+          "description": "HTTP headers to send with requests to the MCP server."
+        }
+      }
+    },
+    "McpCommand": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "command"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Name of the MCP server."
+        },
+        "command": {
+          "type": "string",
+          "description": "Command to run to start the MCP server."
+        },
+        "args": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Arguments to pass to the command."
+        },
+        "env": {
+          "type": "object",
+          "additionalProperties": { "type": "string" },
+          "description": "Environment variables to set for the command."
+        }
+      }
+    },
+    "Mount": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["host", "target"],
+      "properties": {
+        "host": {
+          "type": "string",
+          "description": "Path in the host filesystem. Can use $SOURCES or $HOME variables (e.g., \"$SOURCES/../main\", \"$HOME/.gitconfig\", \"/absolute/path\")."
+        },
+        "target": {
+          "type": "string",
+          "description": "Path in the workspace filesystem where the host path will be mounted. Can use $SOURCES or $HOME variables."
+        },
+        "ro": {
+          "type": "boolean",
+          "default": false,
+          "description": "Mount as read-only. Defaults to false (read-write)."
+        }
+      }
+    },
+    "EnvironmentVariable": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Name of the environment variable."
+        },
+        "value": {
+          "type": "string",
+          "description": "Value of the environment variable (mutually exclusive with secret)."
+        },
+        "secret": {
+          "type": "string",
+          "description": "Name of the secret containing the value (mutually exclusive with value)."
+        }
+      }
+    }
+  }
+}

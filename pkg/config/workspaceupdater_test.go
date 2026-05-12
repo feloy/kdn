@@ -168,7 +168,7 @@ func TestWorkspaceUpdater_ReadConfig_NonExistError(t *testing.T) {
 	}
 
 	w := &workspaceConfigUpdater{configDir: dir}
-	if _, err := w.readConfig(configPath); err == nil {
+	if _, _, err := w.readConfig(configPath); err == nil {
 		t.Error("expected error for directory-as-file, got nil")
 	}
 }
@@ -185,7 +185,7 @@ func TestWorkspaceUpdater_ReadConfig_InvalidJSON(t *testing.T) {
 	}
 
 	w := &workspaceConfigUpdater{configDir: dir}
-	if _, err := w.readConfig(configPath); err == nil {
+	if _, _, err := w.readConfig(configPath); err == nil {
 		t.Error("expected error for invalid JSON, got nil")
 	}
 }
@@ -203,7 +203,7 @@ func TestWorkspaceUpdater_WriteConfig_MkdirAllFails(t *testing.T) {
 
 	w := &workspaceConfigUpdater{configDir: filepath.Join(dir, "kaiden")}
 	configPath := filepath.Join(dir, "kaiden", WorkspaceConfigFile)
-	if err := w.writeConfig(configPath, &workspace.WorkspaceConfiguration{}); err == nil {
+	if err := w.writeConfig(configPath, &workspaceConfigFile{}, false); err == nil {
 		t.Error("expected error when config path is a file, got nil")
 	}
 }
@@ -228,8 +228,83 @@ func TestWorkspaceUpdater_WriteConfig_WriteFileFails(t *testing.T) {
 
 	w := &workspaceConfigUpdater{configDir: dir}
 	configPath := filepath.Join(dir, WorkspaceConfigFile)
-	if err := w.writeConfig(configPath, &workspace.WorkspaceConfiguration{}); err == nil {
+	if err := w.writeConfig(configPath, &workspaceConfigFile{}, false); err == nil {
 		t.Error("expected error writing to read-only directory, got nil")
+	}
+}
+
+// TestWorkspaceUpdater_Schema_AddedOnCreation verifies that $schema is written
+// when workspace.json is created for the first time.
+func TestWorkspaceUpdater_Schema_AddedOnCreation(t *testing.T) {
+	t.Parallel()
+
+	u, _ := NewWorkspaceConfigUpdater(t.TempDir())
+	if err := u.AddSecret("github"); err != nil {
+		t.Fatalf("AddSecret: %v", err)
+	}
+
+	dir := u.(*workspaceConfigUpdater).configDir
+	data, err := os.ReadFile(filepath.Join(dir, WorkspaceConfigFile))
+	if err != nil {
+		t.Fatalf("reading file: %v", err)
+	}
+	var raw map[string]json.RawMessage
+	if err := json.Unmarshal(data, &raw); err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	var schemaURL string
+	if err := json.Unmarshal(raw["$schema"], &schemaURL); err != nil {
+		t.Fatalf("$schema missing or not a string: %v", err)
+	}
+	if schemaURL != WorkspaceSchemaURL {
+		t.Errorf("expected %q, got %q", WorkspaceSchemaURL, schemaURL)
+	}
+}
+
+// TestWorkspaceUpdater_Schema_PreservedOnUpdate verifies that $schema survives
+// subsequent writes and is NOT added to files that were created without it.
+func TestWorkspaceUpdater_Schema_PreservedOnUpdate(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+
+	// Create a file manually without $schema (simulates a pre-existing user file).
+	existing := workspace.WorkspaceConfiguration{}
+	s := []string{"existing-secret"}
+	existing.Secrets = &s
+	data, _ := json.MarshalIndent(existing, "", "  ")
+	if err := os.WriteFile(filepath.Join(dir, WorkspaceConfigFile), data, 0600); err != nil {
+		t.Fatalf("setup: %v", err)
+	}
+
+	u, _ := NewWorkspaceConfigUpdater(dir)
+	if err := u.AddSecret("new-secret"); err != nil {
+		t.Fatalf("AddSecret: %v", err)
+	}
+
+	// $schema must NOT be injected into a pre-existing file.
+	updated, _ := os.ReadFile(filepath.Join(dir, WorkspaceConfigFile))
+	var raw map[string]json.RawMessage
+	_ = json.Unmarshal(updated, &raw)
+	if _, ok := raw["$schema"]; ok {
+		t.Error("$schema must not be added to a pre-existing file")
+	}
+
+	// Create a fresh file via kdn and then update it: $schema must be preserved.
+	dir2 := t.TempDir()
+	u2, _ := NewWorkspaceConfigUpdater(dir2)
+	if err := u2.AddSecret("first"); err != nil {
+		t.Fatalf("AddSecret first: %v", err)
+	}
+	if err := u2.AddSecret("second"); err != nil {
+		t.Fatalf("AddSecret second: %v", err)
+	}
+
+	updated2, _ := os.ReadFile(filepath.Join(dir2, WorkspaceConfigFile))
+	var raw2 map[string]json.RawMessage
+	_ = json.Unmarshal(updated2, &raw2)
+	if _, ok := raw2["$schema"]; !ok {
+		t.Error("$schema must be preserved after subsequent writes")
 	}
 }
 
