@@ -28,6 +28,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/charmbracelet/x/ansi"
 	api "github.com/openkaiden/kdn-api/cli/go"
 	"github.com/openkaiden/kdn/pkg/cmd/testutil"
 	"github.com/openkaiden/kdn/pkg/instances"
@@ -422,15 +423,9 @@ func TestWorkspaceListCmd_E2E(t *testing.T) {
 		shortID := addedInstance.GetID()[:12]
 		lines := strings.Split(output.String(), "\n")
 
-		var nameLine, idLine int = -1, -1
+		nameLine, idLine := -1, -1
 		for i, line := range lines {
-			// Strip ANSI escape sequences for comparison
-			stripped := strings.Map(func(r rune) rune {
-				if r < 32 && r != '\t' {
-					return -1
-				}
-				return r
-			}, line)
+			stripped := ansi.Strip(line)
 			if strings.Contains(stripped, addedInstance.GetName()) {
 				nameLine = i
 			}
