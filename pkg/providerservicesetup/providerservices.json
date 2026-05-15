@@ -1,0 +1,19 @@
+[
+  {
+    "name": "anthropic",
+    "description": "Anthropic Claude AI models",
+    "params": [
+      {"name": "token", "description": "API token", "required": true,  "kind": "secret", "secret_type": "anthropic"},
+      {"name": "url",   "description": "Custom base URL", "required": false, "kind": "url"}
+    ]
+  },
+  {
+    "name": "vertexai",
+    "description": "Google Cloud Vertex AI",
+    "params": [
+      {"name": "project",     "description": "GCP project ID",           "required": true,  "kind": "text"},
+      {"name": "region",      "description": "GCP region",               "required": true,  "kind": "text"},
+      {"name": "credentials", "description": "Path to credentials file", "required": false, "kind": "credential"}
+    ]
+  }
+]

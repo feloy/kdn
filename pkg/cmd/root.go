@@ -68,6 +68,10 @@ func NewRootCmd() *cobra.Command {
 		Title: "Secret Commands:",
 	})
 	rootCmd.AddGroup(&cobra.Group{
+		ID:    "provider",
+		Title: "Provider Commands:",
+	})
+	rootCmd.AddGroup(&cobra.Group{
 		ID:    "config",
 		Title: "Configuration Commands:",
 	})
@@ -116,6 +120,10 @@ func NewRootCmd() *cobra.Command {
 	secretCmd := NewSecretCmd()
 	secretCmd.GroupID = "secret"
 	rootCmd.AddCommand(secretCmd)
+
+	providerCmd := NewProviderCmd()
+	providerCmd.GroupID = "provider"
+	rootCmd.AddCommand(providerCmd)
 
 	autoconfCmd := NewAutoconfCmd()
 	autoconfCmd.GroupID = "config"

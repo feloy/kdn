@@ -742,6 +742,129 @@ func TestCompleteSecretName(t *testing.T) {
 	})
 }
 
+func TestCompleteProviderName(t *testing.T) {
+	t.Parallel()
+
+	// writeProvidersJSON writes a minimal providers.json so List() returns known names.
+	writeProvidersJSON := func(t *testing.T, dir string, names []string) {
+		t.Helper()
+		type paramRecord struct {
+			Name  string `json:"name"`
+			Kind  string `json:"kind"`
+			Value string `json:"value"`
+		}
+		type record struct {
+			Name   string        `json:"name"`
+			Type   string        `json:"type"`
+			Params []paramRecord `json:"params"`
+		}
+		type file struct {
+			Providers []record `json:"providers"`
+		}
+		records := make([]record, 0, len(names))
+		for _, n := range names {
+			records = append(records, record{Name: n, Type: "anthropic", Params: []paramRecord{}})
+		}
+		data, err := json.Marshal(file{Providers: records})
+		if err != nil {
+			t.Fatalf("failed to marshal providers: %v", err)
+		}
+		if err := os.WriteFile(filepath.Join(dir, "providers.json"), data, 0600); err != nil {
+			t.Fatalf("failed to write providers.json: %v", err)
+		}
+	}
+
+	t.Run("returns names of stored providers", func(t *testing.T) {
+		t.Parallel()
+
+		storageDir := t.TempDir()
+		writeProvidersJSON(t, storageDir, []string{"my-anthropic", "my-vertexai"})
+
+		cmd := &cobra.Command{}
+		cmd.Flags().String("storage", storageDir, "")
+
+		completions, directive := completeProviderName(cmd, []string{}, "")
+
+		if directive != cobra.ShellCompDirectiveNoFileComp {
+			t.Errorf("expected ShellCompDirectiveNoFileComp, got %v", directive)
+		}
+		if len(completions) != 2 {
+			t.Fatalf("expected 2 completions, got %d: %v", len(completions), completions)
+		}
+		found := map[string]bool{}
+		for _, c := range completions {
+			found[c] = true
+		}
+		for _, name := range []string{"my-anthropic", "my-vertexai"} {
+			if !found[name] {
+				t.Errorf("expected %q in completions, got %v", name, completions)
+			}
+		}
+	})
+
+	t.Run("returns no completions when storage directory does not exist", func(t *testing.T) {
+		t.Parallel()
+
+		cmd := &cobra.Command{}
+		cmd.Flags().String("storage", filepath.Join(t.TempDir(), "nonexistent"), "")
+
+		completions, directive := completeProviderName(cmd, []string{}, "")
+
+		if directive != cobra.ShellCompDirectiveNoFileComp {
+			t.Errorf("expected ShellCompDirectiveNoFileComp, got %v", directive)
+		}
+		if len(completions) != 0 {
+			t.Errorf("expected 0 completions, got %d: %v", len(completions), completions)
+		}
+	})
+
+	t.Run("returns empty list when no providers exist", func(t *testing.T) {
+		t.Parallel()
+
+		cmd := &cobra.Command{}
+		cmd.Flags().String("storage", t.TempDir(), "")
+
+		completions, directive := completeProviderName(cmd, []string{}, "")
+
+		if directive != cobra.ShellCompDirectiveNoFileComp {
+			t.Errorf("expected ShellCompDirectiveNoFileComp, got %v", directive)
+		}
+		if len(completions) != 0 {
+			t.Errorf("expected 0 completions, got %d: %v", len(completions), completions)
+		}
+	})
+
+	t.Run("returns error directive when storage flag is not registered", func(t *testing.T) {
+		t.Parallel()
+
+		cmd := &cobra.Command{}
+
+		_, directive := completeProviderName(cmd, []string{}, "")
+
+		if directive != cobra.ShellCompDirectiveError {
+			t.Errorf("expected ShellCompDirectiveError, got %v", directive)
+		}
+	})
+
+	t.Run("returns error directive when providers.json is corrupt", func(t *testing.T) {
+		t.Parallel()
+
+		storageDir := t.TempDir()
+		if err := os.WriteFile(filepath.Join(storageDir, "providers.json"), []byte("not-json"), 0600); err != nil {
+			t.Fatalf("failed to write corrupt providers.json: %v", err)
+		}
+
+		cmd := &cobra.Command{}
+		cmd.Flags().String("storage", storageDir, "")
+
+		_, directive := completeProviderName(cmd, []string{}, "")
+
+		if directive != cobra.ShellCompDirectiveError {
+			t.Errorf("expected ShellCompDirectiveError, got %v", directive)
+		}
+	})
+}
+
 func TestCompleteDashboardWorkspaceID(t *testing.T) {
 	t.Parallel()
 
