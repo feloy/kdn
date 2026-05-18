@@ -25,6 +25,7 @@ import (
 	"strings"
 
 	"github.com/fatih/color"
+	api "github.com/openkaiden/kdn-api/cli/go"
 	"github.com/openkaiden/kdn/pkg/provider"
 	"github.com/openkaiden/kdn/pkg/providerservice"
 	"github.com/rodaine/table"
@@ -106,17 +107,17 @@ func formatProviderParams(item provider.ListItem) string {
 }
 
 func (c *providerListCmd) outputJSON(cmd *cobra.Command, items []provider.ListItem) error {
-	output := providersListOutput{
-		Items: make([]providerInfoOutput, 0, len(items)),
+	output := api.ProvidersList{
+		Items: make([]api.ProviderInfo, 0, len(items)),
 	}
 	for _, item := range items {
-		info := providerInfoOutput{
+		info := api.ProviderInfo{
 			Name:   item.Name,
 			Type:   item.Type,
-			Params: make([]providerParamOutput, 0, len(item.Params)),
+			Params: make([]api.ProviderParam, 0, len(item.Params)),
 		}
 		for _, p := range item.Params {
-			info.Params = append(info.Params, providerParamOutput{
+			info.Params = append(info.Params, api.ProviderParam{
 				Name:  p.Name,
 				Value: p.Value,
 			})

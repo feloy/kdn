@@ -24,29 +24,6 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// providerNameOutput is the JSON output for provider create and remove commands.
-type providerNameOutput struct {
-	Name string `json:"name"`
-}
-
-// providerParamOutput is the JSON output for a single provider parameter.
-type providerParamOutput struct {
-	Name  string `json:"name"`
-	Value string `json:"value"`
-}
-
-// providerInfoOutput is the JSON output for a single provider entry.
-type providerInfoOutput struct {
-	Name   string                `json:"name"`
-	Type   string                `json:"type"`
-	Params []providerParamOutput `json:"params,omitempty"`
-}
-
-// providersListOutput is the JSON output for the provider list command.
-type providersListOutput struct {
-	Items []providerInfoOutput `json:"items"`
-}
-
 func NewProviderCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "provider",

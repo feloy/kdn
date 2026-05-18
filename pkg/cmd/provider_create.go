@@ -25,6 +25,7 @@ import (
 	"sort"
 	"strings"
 
+	api "github.com/openkaiden/kdn-api/cli/go"
 	"github.com/openkaiden/kdn/pkg/provider"
 	"github.com/openkaiden/kdn/pkg/providerservice"
 	"github.com/openkaiden/kdn/pkg/providerservicesetup"
@@ -134,7 +135,7 @@ func (c *providerCreateCmd) run(cmd *cobra.Command, args []string) error {
 }
 
 func (c *providerCreateCmd) outputJSON(cmd *cobra.Command, name string) error {
-	response := providerNameOutput{Name: name}
+	response := api.ProviderName{Name: name}
 
 	jsonData, err := json.MarshalIndent(response, "", "  ")
 	if err != nil {

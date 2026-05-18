@@ -23,6 +23,7 @@ import (
 	"fmt"
 	"path/filepath"
 
+	api "github.com/openkaiden/kdn-api/cli/go"
 	"github.com/openkaiden/kdn/pkg/provider"
 	"github.com/spf13/cobra"
 )
@@ -68,7 +69,7 @@ func (c *providerRemoveCmd) run(cmd *cobra.Command, args []string) error {
 }
 
 func (c *providerRemoveCmd) outputJSON(cmd *cobra.Command, name string) error {
-	response := providerNameOutput{Name: name}
+	response := api.ProviderName{Name: name}
 
 	jsonData, err := json.MarshalIndent(response, "", "  ")
 	if err != nil {
